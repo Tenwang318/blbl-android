@@ -64,6 +64,7 @@ class MainActivity : BaseActivity(), SidebarFocusHost {
     private lateinit var binding: ActivityMainBinding
     private lateinit var navAdapter: SidebarNavAdapter
     private var needForceInitialContentFocus: Boolean = false
+    private var pendingButtonBSidebarClose: Boolean = false
     private var launchNavId: Int = SidebarNavAdapter.ID_HOME
     private var currentRootNavId: Int? = null
     private var lastMainFocusedView: WeakReference<View>? = null
@@ -361,6 +362,16 @@ class MainActivity : BaseActivity(), SidebarFocusHost {
             return super.dispatchKeyEvent(event)
         }
 
+        // Consume the B key-up that matches the key-down which closed the sidebar, so the
+        // BaseActivity B->back fallback does not also pop the back stack.
+        if (event.action == KeyEvent.ACTION_UP &&
+            event.keyCode == KeyEvent.KEYCODE_BUTTON_B &&
+            pendingButtonBSidebarClose
+        ) {
+            pendingButtonBSidebarClose = false
+            return true
+        }
+
         if (event.action == KeyEvent.ACTION_DOWN) {
             if (handleGamepadButton(event)) return true
         }
@@ -444,6 +455,17 @@ class MainActivity : BaseActivity(), SidebarFocusHost {
             KeyEvent.KEYCODE_BUTTON_L1 -> return handleMainGamepadAction(BiliClient.prefs.gamepadMainL1Action, event)
             KeyEvent.KEYCODE_BUTTON_R1 -> return handleMainGamepadAction(BiliClient.prefs.gamepadMainR1Action, event)
             KeyEvent.KEYCODE_BUTTON_START -> return handleMainGamepadAction(BiliClient.prefs.gamepadMainStartAction, event)
+            KeyEvent.KEYCODE_BUTTON_B -> {
+                // B closes the sidebar overlay; when it is hidden, B falls through to "back".
+                if (!isSidebarExpanded) {
+                    pendingButtonBSidebarClose = false
+                    return false
+                }
+                if (event.repeatCount > 0) return true
+                pendingButtonBSidebarClose = true
+                toggleSidebarOverlay()
+                return true
+            }
         }
         return false
     }
@@ -1155,17 +1177,33 @@ class MainActivity : BaseActivity(), SidebarFocusHost {
 
     private fun focusMainContentPrimaryItem(): Boolean {
         val rootFragment = currentRootFragment() ?: return false
-        val host = rootFragment as? TabContentSwitchFocusHost ?: return false
-        return host.requestFocusCurrentPagePrimaryItemFromContentSwitch()
+        val host = rootFragment as? TabContentSwitchFocusHost
+        if (host != null && host.requestFocusCurrentPagePrimaryItemFromContentSwitch()) return true
+        // Generic fallback for roots without the focus-host interface: focus the first
+        // focusable descendant inside the main container.
+        return binding.mainContainer.requestFocus()
     }
 
     private fun forceInitialContentFocusIfNeeded() {
         if (!needForceInitialContentFocus) return
-        // Cold start keeps the sidebar overlay closed; put initial focus on main content instead.
-        if (currentFocus == null) {
-            focusMainContentPrimaryItem()
-        }
         needForceInitialContentFocus = false
+        // The launch page's ViewPager2 child fragments are created after the first layout, so
+        // retry until something actually takes focus (the page fragments also defer to their
+        // own "focus first card when data arrives" handling).
+        scheduleInitialContentFocusRetry(attemptsLeft = 25)
+    }
+
+    private fun scheduleInitialContentFocusRetry(attemptsLeft: Int) {
+        if (attemptsLeft <= 0) return
+        val decor = window?.decorView ?: return
+        decor.postDelayed({
+            if (isFinishing || isDestroyed) return@postDelayed
+            if (currentFocus != null) return@postDelayed
+            focusMainContentPrimaryItem()
+            if (currentFocus == null) {
+                scheduleInitialContentFocusRetry(attemptsLeft - 1)
+            }
+        }, 200L)
     }
 
     private fun restoreFocusAfterResume() {

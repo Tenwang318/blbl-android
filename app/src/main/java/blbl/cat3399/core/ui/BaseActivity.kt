@@ -5,6 +5,7 @@ import android.content.Context
 import android.os.BadParcelableException
 import android.os.Bundle
 import android.os.Build
+import android.view.KeyEvent
 import android.view.MotionEvent
 import androidx.appcompat.app.AppCompatActivity
 import blbl.cat3399.core.log.AppLog
@@ -27,6 +28,32 @@ open class BaseActivity : AppCompatActivity() {
             }
         }
         return super.dispatchGenericMotionEvent(event)
+    }
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (handleGamepadConfirmBack(event)) return true
+        return super.dispatchKeyEvent(event)
+    }
+
+    /**
+     * Fallback mapping for gamepad face buttons, only reached for events not consumed by a
+     * subclass activity (players handle A/B themselves). A confirms the focused view; B goes back.
+     */
+    private fun handleGamepadConfirmBack(event: KeyEvent): Boolean {
+        if (event.repeatCount > 0) return false
+        when (event.keyCode) {
+            KeyEvent.KEYCODE_BUTTON_A -> {
+                if (event.action != KeyEvent.ACTION_UP) return false
+                val focused = currentFocus ?: return false
+                return focused.performClick()
+            }
+            KeyEvent.KEYCODE_BUTTON_B -> {
+                if (event.action != KeyEvent.ACTION_UP) return false
+                onBackPressedDispatcher.onBackPressed()
+                return true
+            }
+        }
+        return false
     }
 
     override fun onDestroy() {
