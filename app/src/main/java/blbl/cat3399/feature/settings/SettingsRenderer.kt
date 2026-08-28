@@ -507,9 +507,9 @@ class SettingsRenderer(
                     ),
                     SettingEntry(
                         SettingId.GamepadDeadZone,
-                        "摇杆死区",
+                        "摇杆触发点",
                         "${prefs.gamepadDeadZonePercent}%",
-                        "摇杆偏移超过该比例才触发方向移动",
+                        "摇杆推动超过该比例才触发方向移动（wiliwili 同款为 50%）",
                     ),
                     SettingEntry(
                         SettingId.GamepadMainL1Action,

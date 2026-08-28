@@ -745,9 +745,9 @@ class SettingsInteractionHandler(
                 renderer.refreshSection(entry.id)
             }
             SettingId.GamepadDeadZone -> {
-                val options = listOf(10, 15, 20, 25, 30, 40, 50)
+                val options = listOf(30, 40, 50, 60, 70)
                 showChoiceDialog(
-                    title = "摇杆死区",
+                    title = "摇杆触发点",
                     items = options.map { "$it%" },
                     current = "${prefs.gamepadDeadZonePercent}%",
                 ) { selected ->

@@ -1087,7 +1087,7 @@ class AppPrefs(context: Context) {
         private const val KEY_GAMEPAD_MAIN_L1_ACTION = "gamepad_main_l1_action"
         private const val KEY_GAMEPAD_MAIN_R1_ACTION = "gamepad_main_r1_action"
         private const val KEY_GAMEPAD_MAIN_START_ACTION = "gamepad_main_start_action"
-        private const val DEFAULT_GAMEPAD_DEAD_ZONE_PERCENT = 20
+        private const val DEFAULT_GAMEPAD_DEAD_ZONE_PERCENT = 50
         private const val KEY_DEVICE_BUVID = "device_buvid"
         private const val KEY_DEVICE_UUID = "device_uuid"
         private const val KEY_BUVID_ACTIVATED_MID = "buvid_activated_mid"
