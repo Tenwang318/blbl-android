@@ -78,6 +78,8 @@
     </style>
 
     <style name="Widget.Blbl.TabLayout" parent="Widget.MaterialComponents.TabLayout">
+        <item name="tabMode">scrollable</item>
+        <item name="tabGravity">center</item>
         <item name="tabTextAppearance">@style/TextAppearance.Blbl.Tab</item>
         <item name="tabIndicator">@drawable/blbl_tab_indicator</item>
         <item name="tabIndicatorColor">?attr/blblAccent</item>

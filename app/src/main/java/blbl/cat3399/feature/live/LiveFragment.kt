@@ -2,7 +2,6 @@ package blbl.cat3399.feature.live
 
 import android.os.Bundle
 import android.os.SystemClock
-import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -13,7 +12,6 @@ import blbl.cat3399.core.log.AppLog
 import blbl.cat3399.core.net.BiliClient
 import blbl.cat3399.core.prefs.AppPrefs
 import blbl.cat3399.core.ui.TabContentFocusTarget
-import blbl.cat3399.core.ui.enableDpadTabFocus
 import blbl.cat3399.core.ui.findCurrentViewPagerChildFragment
 import blbl.cat3399.core.ui.findCurrentViewPagerChildFragmentAs
 import blbl.cat3399.core.ui.postDelayedIfAlive
@@ -24,13 +22,14 @@ import blbl.cat3399.ui.BackPressHandler
 import blbl.cat3399.ui.RefreshKeyHandler
 import blbl.cat3399.ui.SidebarFocusHost
 import com.google.android.material.tabs.TabLayout
-import com.google.android.material.tabs.TabLayoutMediator
+import blbl.cat3399.core.ui.InstantTabPagerMediator
+import blbl.cat3399.core.ui.disableDpadTabFocus
 
 class LiveFragment : Fragment(), LiveGridTabSwitchFocusHost, BackPressHandler, LiveNavigator {
     private var _binding: FragmentLiveBinding? = null
     private val binding get() = _binding!!
 
-    private var mediator: TabLayoutMediator? = null
+    private var mediator: InstantTabPagerMediator? = null
     private var pageCallback: androidx.viewpager2.widget.ViewPager2.OnPageChangeCallback? = null
     private var pendingFocusFirstCardFromContentSwitch: Boolean = false
     private var pendingFocusFirstCardFromBackToTab0: Boolean = false
@@ -139,7 +138,7 @@ class LiveFragment : Fragment(), LiveGridTabSwitchFocusHost, BackPressHandler, L
         val b = binding
         b.viewPager.adapter = LivePagerAdapter(this, tabs)
         mediator =
-            TabLayoutMediator(b.tabLayout, b.viewPager) { tab, position ->
+            InstantTabPagerMediator(b.tabLayout, b.viewPager) { tab, position ->
                 tab.text = tabs.getOrNull(position)?.title ?: ""
             }.also { it.attach() }
 
@@ -151,23 +150,7 @@ class LiveFragment : Fragment(), LiveGridTabSwitchFocusHost, BackPressHandler, L
             b.viewPager.setCurrentItem(targetIndex, false)
         }
 
-        val tabLayout = b.tabLayout
-        tabLayout.postIfAlive(isAlive = { _binding === b }) {
-            tabLayout.enableDpadTabFocus(selectOnFocusProvider = { BiliClient.prefs.tabSwitchFollowsFocus }) { position ->
-                val tab = tabs.getOrNull(position)
-                AppLog.d("Live", "tab focus pos=$position key=${tab?.key} title=${tab?.title} t=${SystemClock.uptimeMillis()}")
-            }
-            val tabStrip = tabLayout.getChildAt(0) as? ViewGroup ?: return@postIfAlive
-            for (i in 0 until tabStrip.childCount) {
-                tabStrip.getChildAt(i).setOnKeyListener { _, keyCode, event ->
-                    if (event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
-                        focusCurrentPageFirstCardFromTab()
-                        return@setOnKeyListener true
-                    }
-                    false
-                }
-            }
-        }
+        b.tabLayout.disableDpadTabFocus()
 
         pageCallback?.let { binding.viewPager.unregisterOnPageChangeCallback(it) }
         pageCallback =

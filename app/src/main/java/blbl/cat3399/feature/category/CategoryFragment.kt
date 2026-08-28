@@ -3,21 +3,19 @@ package blbl.cat3399.feature.category
 import android.os.Bundle
 import android.os.SystemClock
 import android.view.LayoutInflater
-import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import blbl.cat3399.core.prefs.AppPrefs
 import blbl.cat3399.ui.RefreshKeyHandler
 import com.google.android.material.tabs.TabLayout
-import com.google.android.material.tabs.TabLayoutMediator
+import blbl.cat3399.core.ui.InstantTabPagerMediator
+import blbl.cat3399.core.ui.disableDpadTabFocus
 import blbl.cat3399.core.log.AppLog
 import blbl.cat3399.core.model.Zone
 import blbl.cat3399.core.net.BiliClient
-import blbl.cat3399.core.ui.enableDpadTabFocus
 import blbl.cat3399.core.ui.findCurrentViewPagerChildFragmentAs
 import blbl.cat3399.core.ui.postDelayedIfAlive
-import blbl.cat3399.core.ui.postIfAlive
 import blbl.cat3399.core.ui.requestFocusSelectedTab
 import blbl.cat3399.core.ui.TabContentFocusTarget
 import blbl.cat3399.databinding.FragmentCategoryBinding
@@ -28,7 +26,7 @@ import blbl.cat3399.ui.SidebarFocusHost
 class CategoryFragment : Fragment(), VideoGridTabSwitchFocusHost, BackPressHandler {
     private var _binding: FragmentCategoryBinding? = null
     private val binding get() = _binding!!
-    private var mediator: TabLayoutMediator? = null
+    private var mediator: InstantTabPagerMediator? = null
     private var pageCallback: androidx.viewpager2.widget.ViewPager2.OnPageChangeCallback? = null
     private var pendingFocusFirstCardFromContentSwitch: Boolean = false
     private var pendingFocusFirstCardFromBackToTab0: Boolean = false
@@ -96,7 +94,7 @@ class CategoryFragment : Fragment(), VideoGridTabSwitchFocusHost, BackPressHandl
             "pager init count=${zones.size} offscreen=${b.viewPager.offscreenPageLimit} t=${SystemClock.uptimeMillis()}",
         )
         mediator =
-            TabLayoutMediator(b.tabLayout, b.viewPager) { tab, position ->
+            InstantTabPagerMediator(b.tabLayout, b.viewPager) { tab, position ->
                 tab.text = zones.getOrNull(position)?.title.orEmpty()
             }.also { it.attach() }
 
@@ -109,26 +107,7 @@ class CategoryFragment : Fragment(), VideoGridTabSwitchFocusHost, BackPressHandl
     }
 
     private fun installTabFocusHandlers(b: FragmentCategoryBinding) {
-        val tabLayout = b.tabLayout
-        tabLayout.postIfAlive(isAlive = { _binding === b }) {
-            tabLayout.enableDpadTabFocus(selectOnFocusProvider = { BiliClient.prefs.tabSwitchFollowsFocus }) { position ->
-                val zone = zones.getOrNull(position)
-                AppLog.d(
-                    "Category",
-                    "tab focus pos=$position title=${zone?.title} rid=${zone?.rid} t=${SystemClock.uptimeMillis()}",
-                )
-            }
-            val tabStrip = tabLayout.getChildAt(0) as? ViewGroup ?: return@postIfAlive
-            for (i in 0 until tabStrip.childCount) {
-                tabStrip.getChildAt(i).setOnKeyListener { _, keyCode, event ->
-                    if (event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
-                        focusCurrentPageFirstCardFromTab()
-                        return@setOnKeyListener true
-                    }
-                    false
-                }
-            }
-        }
+        b.tabLayout.disableDpadTabFocus()
     }
 
     private fun refreshCurrentPageFromTabReselect(): Boolean {

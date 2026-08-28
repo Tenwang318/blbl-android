@@ -2,7 +2,6 @@ package blbl.cat3399.feature.my
 
 import android.os.Bundle
 import android.os.SystemClock
-import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -12,14 +11,14 @@ import blbl.cat3399.R
 import blbl.cat3399.core.log.AppLog
 import blbl.cat3399.core.net.BiliClient
 import blbl.cat3399.core.prefs.AppPrefs
-import blbl.cat3399.core.ui.enableDpadTabFocus
 import blbl.cat3399.core.ui.findCurrentViewPagerChildFragment
 import blbl.cat3399.core.ui.findCurrentViewPagerChildFragmentAs
 import blbl.cat3399.core.ui.postIfAlive
 import blbl.cat3399.core.ui.requestFocusSelectedTab
 import blbl.cat3399.databinding.FragmentMyTabsBinding
 import blbl.cat3399.ui.BackPressHandler
-import com.google.android.material.tabs.TabLayoutMediator
+import blbl.cat3399.core.ui.InstantTabPagerMediator
+import blbl.cat3399.core.ui.disableDpadTabFocus
 import blbl.cat3399.ui.RefreshKeyHandler
 import blbl.cat3399.ui.SidebarFocusHost
 import com.google.android.material.tabs.TabLayout
@@ -28,7 +27,7 @@ class MyTabsFragment : Fragment(), MyTabContentSwitchFocusHost, BackPressHandler
     private var _binding: FragmentMyTabsBinding? = null
     private val binding get() = _binding!!
 
-    private var mediator: TabLayoutMediator? = null
+    private var mediator: InstantTabPagerMediator? = null
     private var pageCallback: androidx.viewpager2.widget.ViewPager2.OnPageChangeCallback? = null
     private var tabs: List<MyTabSpec> = emptyList()
     private var pendingFocusFirstItemFromContentSwitch: Boolean = false
@@ -84,7 +83,7 @@ class MyTabsFragment : Fragment(), MyTabContentSwitchFocusHost, BackPressHandler
 
         b.viewPager.adapter = MyPagerAdapter(this, tabs)
         mediator =
-            TabLayoutMediator(b.tabLayout, b.viewPager) { tab, position ->
+            InstantTabPagerMediator(b.tabLayout, b.viewPager) { tab, position ->
                 tab.text = tabs.getOrNull(position)?.let { getString(it.titleRes) }.orEmpty()
             }.also { it.attach() }
 
@@ -97,22 +96,7 @@ class MyTabsFragment : Fragment(), MyTabContentSwitchFocusHost, BackPressHandler
     }
 
     private fun installTabFocusHandlers(b: FragmentMyTabsBinding) {
-        val tabLayout = b.tabLayout
-        tabLayout.postIfAlive(isAlive = { _binding === b }) {
-            tabLayout.enableDpadTabFocus(selectOnFocusProvider = { BiliClient.prefs.tabSwitchFollowsFocus }) { position ->
-                val tab = tabs.getOrNull(position)
-                AppLog.d("My", "tab focus pos=$position key=${tab?.key} t=${SystemClock.uptimeMillis()}")
-            }
-            val tabStrip = tabLayout.getChildAt(0) as? ViewGroup ?: return@postIfAlive
-            for (i in 0 until tabStrip.childCount) {
-                tabStrip.getChildAt(i).setOnKeyListener { _, keyCode, event ->
-                    if (event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
-                        return@setOnKeyListener focusCurrentPageFirstItem()
-                    }
-                    false
-                }
-            }
-        }
+        b.tabLayout.disableDpadTabFocus()
     }
 
     private fun refreshCurrentPageFromTabReselect(): Boolean {

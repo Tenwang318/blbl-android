@@ -33,3 +33,69 @@ fun TabLayout.requestFocusSelectedTab(
     }
     return true
 }
+
+/**
+ * Drop-in replacement for [TabLayoutMediator] that switches pages instantly
+ * (`setCurrentItem(position, false)`) instead of smooth-scrolling, and never lets the pager
+ * animate while the user flips tabs with the shoulder buttons.
+ */
+class InstantTabPagerMediator(
+    private val tabLayout: TabLayout,
+    private val viewPager: ViewPager2,
+    private val configureTab: (TabLayout.Tab, Int) -> Unit,
+) {
+    private val pageCallback = object : ViewPager2.OnPageChangeCallback() {
+        override fun onPageSelected(position: Int) {
+            if (tabLayout.selectedTabPosition != position) {
+                tabLayout.getTabAt(position)?.select()
+            }
+        }
+    }
+
+    private val tabListener = object : TabLayout.OnTabSelectedListener {
+        override fun onTabSelected(tab: TabLayout.Tab) {
+            if (viewPager.currentItem != tab.position) {
+                viewPager.setCurrentItem(tab.position, false)
+            }
+        }
+
+        override fun onTabUnselected(tab: TabLayout.Tab) = Unit
+
+        override fun onTabReselected(tab: TabLayout.Tab) = Unit
+    }
+
+    fun attach() {
+        viewPager.registerOnPageChangeCallback(pageCallback)
+        tabLayout.addOnTabSelectedListener(tabListener)
+        populateTabs()
+    }
+
+    fun detach() {
+        viewPager.unregisterOnPageChangeCallback(pageCallback)
+        tabLayout.removeOnTabSelectedListener(tabListener)
+    }
+
+    private fun populateTabs() {
+        tabLayout.removeAllTabs()
+        val count = viewPager.adapter?.itemCount ?: 0
+        for (position in 0 until count) {
+            val tab = tabLayout.newTab()
+            configureTab(tab, position)
+            tabLayout.addTab(tab, setSelected = false)
+        }
+        val current = viewPager.currentItem
+        if (current in 0 until count) {
+            tabLayout.getTabAt(current)?.select()
+        }
+    }
+}
+
+/**
+ * Tab strip is switched with the shoulder buttons only: keep it out of the focus traversal
+ * entirely so DPAD navigation never lands on a tab.
+ */
+fun TabLayout.disableDpadTabFocus() {
+    descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
+    isFocusable = false
+    isFocusableInTouchMode = false
+}

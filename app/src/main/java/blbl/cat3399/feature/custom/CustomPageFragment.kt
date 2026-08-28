@@ -2,7 +2,6 @@ package blbl.cat3399.feature.custom
 
 import android.os.Bundle
 import android.os.SystemClock
-import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -13,23 +12,22 @@ import blbl.cat3399.core.net.BiliClient
 import blbl.cat3399.core.prefs.AppPrefs
 import blbl.cat3399.core.ui.TabContentFocusTarget
 import blbl.cat3399.core.ui.TabContentSwitchFocusHost
-import blbl.cat3399.core.ui.enableDpadTabFocus
 import blbl.cat3399.core.ui.findCurrentViewPagerChildFragmentAs
 import blbl.cat3399.core.ui.postDelayedIfAlive
-import blbl.cat3399.core.ui.postIfAlive
 import blbl.cat3399.core.ui.requestFocusSelectedTab
 import blbl.cat3399.databinding.FragmentCustomPageBinding
 import blbl.cat3399.ui.BackPressHandler
 import blbl.cat3399.ui.RefreshKeyHandler
 import blbl.cat3399.ui.SidebarFocusHost
 import com.google.android.material.tabs.TabLayout
-import com.google.android.material.tabs.TabLayoutMediator
+import blbl.cat3399.core.ui.InstantTabPagerMediator
+import blbl.cat3399.core.ui.disableDpadTabFocus
 
 class CustomPageFragment : Fragment(), TabContentSwitchFocusHost, BackPressHandler {
     private var _binding: FragmentCustomPageBinding? = null
     private val binding get() = _binding!!
 
-    private var mediator: TabLayoutMediator? = null
+    private var mediator: InstantTabPagerMediator? = null
     private var pageCallback: androidx.viewpager2.widget.ViewPager2.OnPageChangeCallback? = null
     private var tabs: List<CustomPageResolvedTab> = emptyList()
 
@@ -172,7 +170,7 @@ class CustomPageFragment : Fragment(), TabContentSwitchFocusHost, BackPressHandl
 
         b.viewPager.adapter = CustomPagePagerAdapter(this, list)
         mediator =
-            TabLayoutMediator(b.tabLayout, b.viewPager) { tab, position ->
+            InstantTabPagerMediator(b.tabLayout, b.viewPager) { tab, position ->
                 tab.text = list.getOrNull(position)?.title ?: ""
             }.also { it.attach() }
         b.viewPager.setCurrentItem(selectedIndex.coerceIn(0, list.lastIndex), false)
@@ -180,23 +178,7 @@ class CustomPageFragment : Fragment(), TabContentSwitchFocusHost, BackPressHandl
         b.tabLayout.removeOnTabSelectedListener(tabReselectRefreshListener)
         b.tabLayout.addOnTabSelectedListener(tabReselectRefreshListener)
 
-        val tabLayout = b.tabLayout
-        tabLayout.postIfAlive(isAlive = { _binding === b }) {
-            tabLayout.enableDpadTabFocus(selectOnFocusProvider = { BiliClient.prefs.tabSwitchFollowsFocus }) { position ->
-                val title = list.getOrNull(position)?.title
-                AppLog.d("CustomPage", "tab focus pos=$position title=$title t=${SystemClock.uptimeMillis()}")
-            }
-            val tabStrip = tabLayout.getChildAt(0) as? ViewGroup ?: return@postIfAlive
-            for (i in 0 until tabStrip.childCount) {
-                tabStrip.getChildAt(i).setOnKeyListener { _, keyCode, event ->
-                    if (event.action == KeyEvent.ACTION_DOWN && keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
-                        focusCurrentPagePrimaryItemFromTab()
-                        return@setOnKeyListener true
-                    }
-                    false
-                }
-            }
-        }
+        b.tabLayout.disableDpadTabFocus()
 
         pageCallback =
             object : androidx.viewpager2.widget.ViewPager2.OnPageChangeCallback() {
