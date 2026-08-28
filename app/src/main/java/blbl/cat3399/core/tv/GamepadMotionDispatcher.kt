@@ -7,6 +7,7 @@ import android.view.KeyCharacterMap
 import android.view.KeyEvent
 import android.view.MotionEvent
 import blbl.cat3399.core.log.AppLog
+import blbl.cat3399.core.net.BiliClient
 
 /**
  * Dispatches joystick / D-pad motion events as synthesized DPAD key events.
@@ -14,25 +15,34 @@ import blbl.cat3399.core.log.AppLog
  * Supports:
  * - Left stick (AXIS_X / AXIS_Y)
  * - D-pad (AXIS_HAT_X / AXIS_HAT_Y)
- * - Right stick (AXIS_Z / AXIS_RZ) — optional, disabled by default
+ * - Right stick (AXIS_Z / AXIS_RZ) — optional, off by default (see prefs.gamepadRightStickEnabled)
  *
- * Dead-zone, repeat interval, and enabled axes are configurable.
+ * Dead zone and enabled axes are read from prefs on every event so settings
+ * changes apply immediately without recreating the dispatcher.
  */
 class GamepadMotionDispatcher(
     private val activity: Activity,
-    private val deadZone: Float = DEFAULT_DEAD_ZONE,
-    private val repeatIntervalMs: Long = DEFAULT_REPEAT_INTERVAL_MS,
-    private val enabledAxes: Int = AXIS_LEFT_STICK or AXIS_DPAD,
 ) {
     companion object {
         const val AXIS_LEFT_STICK = 1
         const val AXIS_DPAD = 2
         const val AXIS_RIGHT_STICK = 4
 
-        private const val DEFAULT_DEAD_ZONE = 0.20f
         private const val DEFAULT_REPEAT_INTERVAL_MS = 50L
         private const val TAG = "GamepadMotion"
     }
+
+    private val repeatIntervalMs: Long = DEFAULT_REPEAT_INTERVAL_MS
+
+    private fun enabledAxes(): Int {
+        var axes = AXIS_LEFT_STICK or AXIS_DPAD
+        if (BiliClient.prefs.gamepadRightStickEnabled) {
+            axes = axes or AXIS_RIGHT_STICK
+        }
+        return axes
+    }
+
+    private fun deadZone(): Float = BiliClient.prefs.gamepadDeadZonePercent / 100f
 
     private var lastHatX = 0f
     private var lastHatY = 0f
@@ -78,6 +88,8 @@ class GamepadMotionDispatcher(
         }
 
         // Read all enabled axes
+        val axes = enabledAxes()
+        val deadZoneValue = deadZone()
         val hatX: Float
         val hatY: Float
         val x: Float
@@ -85,7 +97,7 @@ class GamepadMotionDispatcher(
         val z: Float
         val rz: Float
 
-        if (enabledAxes and AXIS_DPAD != 0) {
+        if (axes and AXIS_DPAD != 0) {
             hatX = event.getAxisValue(MotionEvent.AXIS_HAT_X)
             hatY = event.getAxisValue(MotionEvent.AXIS_HAT_Y)
             lastHatX = hatX
@@ -95,7 +107,7 @@ class GamepadMotionDispatcher(
             hatY = 0f
         }
 
-        if (enabledAxes and AXIS_LEFT_STICK != 0) {
+        if (axes and AXIS_LEFT_STICK != 0) {
             x = event.getAxisValue(MotionEvent.AXIS_X)
             y = event.getAxisValue(MotionEvent.AXIS_Y)
             lastXAxis = x
@@ -105,7 +117,7 @@ class GamepadMotionDispatcher(
             y = 0f
         }
 
-        if (enabledAxes and AXIS_RIGHT_STICK != 0) {
+        if (axes and AXIS_RIGHT_STICK != 0) {
             z = event.getAxisValue(MotionEvent.AXIS_Z)
             rz = event.getAxisValue(MotionEvent.AXIS_RZ)
             lastZAxis = z
@@ -118,9 +130,9 @@ class GamepadMotionDispatcher(
         val now = SystemClock.uptimeMillis()
 
         // Resolve direction from each source
-        val hatDir = resolveDirection(hatX, hatY)
-        val stickDir = resolveDirection(x, y)
-        val rightDir = resolveDirection(z, rz)
+        val hatDir = resolveDirection(hatX, hatY, deadZoneValue)
+        val stickDir = resolveDirection(x, y, deadZoneValue)
+        val rightDir = resolveDirection(z, rz, deadZoneValue)
 
         // Priority: D-pad hat > left stick > right stick
         val newDir = when {
@@ -139,7 +151,11 @@ class GamepadMotionDispatcher(
         return false
     }
 
-    private fun resolveDirection(x: Float, y: Float): Int {
+    private fun resolveDirection(
+        x: Float,
+        y: Float,
+        deadZone: Float,
+    ): Int {
         val absX = kotlin.math.abs(x)
         val absY = kotlin.math.abs(y)
         if (absX < deadZone && absY < deadZone) {

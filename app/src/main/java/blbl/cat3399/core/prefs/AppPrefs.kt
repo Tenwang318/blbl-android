@@ -3,6 +3,7 @@ package blbl.cat3399.core.prefs
 import android.content.Context
 import android.provider.Settings
 import blbl.cat3399.core.api.SponsorBlockCategories
+import blbl.cat3399.core.tv.GamepadMainActions
 import blbl.cat3399.core.tv.isTvDevice
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.json.JSONArray
@@ -147,6 +148,31 @@ class AppPrefs(context: Context) {
     var ipv4OnlyEnabled: Boolean
         get() = prefs.getBoolean(KEY_IPV4_ONLY_ENABLED, false)
         set(value) = prefs.edit().putBoolean(KEY_IPV4_ONLY_ENABLED, value).apply()
+
+    var gamepadRightStickEnabled: Boolean
+        get() = prefs.getBoolean(KEY_GAMEPAD_RIGHT_STICK_ENABLED, false)
+        set(value) = prefs.edit().putBoolean(KEY_GAMEPAD_RIGHT_STICK_ENABLED, value).apply()
+
+    var gamepadDeadZonePercent: Int
+        get() = prefs.getInt(KEY_GAMEPAD_DEAD_ZONE_PERCENT, DEFAULT_GAMEPAD_DEAD_ZONE_PERCENT)
+        set(value) = prefs.edit().putInt(KEY_GAMEPAD_DEAD_ZONE_PERCENT, value.coerceIn(1, 95)).apply()
+
+    var gamepadMainL1Action: String
+        get() = normalizeGamepadMainAction(prefs.getString(KEY_GAMEPAD_MAIN_L1_ACTION, null), GamepadMainActions.PREV_TAB)
+        set(value) = prefs.edit().putString(KEY_GAMEPAD_MAIN_L1_ACTION, value).apply()
+
+    var gamepadMainR1Action: String
+        get() = normalizeGamepadMainAction(prefs.getString(KEY_GAMEPAD_MAIN_R1_ACTION, null), GamepadMainActions.NEXT_TAB)
+        set(value) = prefs.edit().putString(KEY_GAMEPAD_MAIN_R1_ACTION, value).apply()
+
+    var gamepadMainStartAction: String
+        get() = normalizeGamepadMainAction(prefs.getString(KEY_GAMEPAD_MAIN_START_ACTION, null), GamepadMainActions.TOGGLE_SIDEBAR)
+        set(value) = prefs.edit().putString(KEY_GAMEPAD_MAIN_START_ACTION, value).apply()
+
+    private fun normalizeGamepadMainAction(raw: String?, fallback: String): String {
+        val value = raw?.trim().orEmpty()
+        return if (GamepadMainActions.isValid(value)) value else fallback
+    }
 
     var deviceBuvid: String
         get() = prefs.getString(KEY_DEVICE_BUVID, null) ?: generateBuvid().also { prefs.edit().putString(KEY_DEVICE_BUVID, it).apply() }
@@ -1056,6 +1082,12 @@ class AppPrefs(context: Context) {
         private const val KEY_UA = "ua"
         private const val KEY_API_SOURCE = "api_source"
         private const val KEY_IPV4_ONLY_ENABLED = "ipv4_only_enabled"
+        private const val KEY_GAMEPAD_RIGHT_STICK_ENABLED = "gamepad_right_stick_enabled"
+        private const val KEY_GAMEPAD_DEAD_ZONE_PERCENT = "gamepad_dead_zone_percent"
+        private const val KEY_GAMEPAD_MAIN_L1_ACTION = "gamepad_main_l1_action"
+        private const val KEY_GAMEPAD_MAIN_R1_ACTION = "gamepad_main_r1_action"
+        private const val KEY_GAMEPAD_MAIN_START_ACTION = "gamepad_main_start_action"
+        private const val DEFAULT_GAMEPAD_DEAD_ZONE_PERCENT = 20
         private const val KEY_DEVICE_BUVID = "device_buvid"
         private const val KEY_DEVICE_UUID = "device_uuid"
         private const val KEY_BUVID_ACTIVATED_MID = "buvid_activated_mid"

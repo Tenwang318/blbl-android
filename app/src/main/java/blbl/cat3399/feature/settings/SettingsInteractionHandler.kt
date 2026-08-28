@@ -30,6 +30,7 @@ import blbl.cat3399.core.log.LogUploadClient
 import blbl.cat3399.core.net.BiliClient
 import blbl.cat3399.core.prefs.AppConfigBackup
 import blbl.cat3399.core.prefs.AppPrefs
+import blbl.cat3399.core.tv.GamepadMainActions
 import blbl.cat3399.core.prefs.CustomPageConfig
 import blbl.cat3399.core.prefs.CustomPageTabConfig
 import blbl.cat3399.core.prefs.PlayerCustomShortcut
@@ -738,6 +739,29 @@ class SettingsInteractionHandler(
                 renderer.refreshSection(entry.id)
             }
             SettingId.GaiaVgate -> showGaiaVgateDialog(state.currentSectionIndex, entry.id)
+            SettingId.GamepadRightStickEnabled -> {
+                prefs.gamepadRightStickEnabled = !prefs.gamepadRightStickEnabled
+                AppToast.show(activity, "右摇杆导航：${if (prefs.gamepadRightStickEnabled) "开" else "关"}")
+                renderer.refreshSection(entry.id)
+            }
+            SettingId.GamepadDeadZone -> {
+                val options = listOf(10, 15, 20, 25, 30, 40, 50)
+                showChoiceDialog(
+                    title = "摇杆死区",
+                    items = options.map { "$it%" },
+                    current = "${prefs.gamepadDeadZonePercent}%",
+                ) { selected ->
+                    val value = selected.removeSuffix("%").toIntOrNull() ?: return@showChoiceDialog
+                    prefs.gamepadDeadZonePercent = value
+                    renderer.refreshSection(entry.id)
+                }
+            }
+            SettingId.GamepadMainL1Action ->
+                showGamepadMainActionDialog(entry, prefs.gamepadMainL1Action) { prefs.gamepadMainL1Action = it }
+            SettingId.GamepadMainR1Action ->
+                showGamepadMainActionDialog(entry, prefs.gamepadMainR1Action) { prefs.gamepadMainR1Action = it }
+            SettingId.GamepadMainStartAction ->
+                showGamepadMainActionDialog(entry, prefs.gamepadMainStartAction) { prefs.gamepadMainStartAction = it }
             SettingId.ClearCache -> showClearCacheDialog(state.currentSectionIndex, entry.id)
             SettingId.ConfigTransfer -> showConfigTransferDialog()
             SettingId.ClearLogin -> showClearLoginDialog(state.currentSectionIndex, entry.id)
@@ -1654,6 +1678,27 @@ class SettingsInteractionHandler(
             checkedIndex = checked,
         ) { _, label ->
             onPicked(label)
+        }
+    }
+
+    private fun showGamepadMainActionDialog(
+        entry: SettingEntry,
+        currentAction: String,
+        onPicked: (String) -> Unit,
+    ) {
+        showChoiceDialog(
+            title = entry.title,
+            items = GamepadMainActions.ALL.map { GamepadMainActions.label(it) },
+            current = GamepadMainActions.label(currentAction),
+        ) { selected ->
+            val action = GamepadMainActions.ALL.firstOrNull { GamepadMainActions.label(it) == selected }
+            if (action == null) {
+                AppToast.show(activity, "未知操作：$selected")
+                return@showChoiceDialog
+            }
+            onPicked(action)
+            AppToast.show(activity, "${entry.title}：${GamepadMainActions.label(action)}")
+            renderer.refreshSection(entry.id)
         }
     }
 

@@ -7,6 +7,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import blbl.cat3399.BuildConfig
 import blbl.cat3399.core.net.BiliClient
+import blbl.cat3399.core.tv.GamepadMainActions
 import blbl.cat3399.core.ui.FocusTreeUtils
 import blbl.cat3399.core.ui.requestFocusAdapterPositionReliable
 import blbl.cat3399.databinding.ActivitySettingsBinding
@@ -494,6 +495,40 @@ class SettingsRenderer(
                     SettingEntry(SettingId.DanmakuAllowBottom, "允许底部悬停弹幕", if (prefs.danmakuAllowBottom) "开" else "关", null),
                     SettingEntry(SettingId.DanmakuAllowColor, "允许彩色弹幕", if (prefs.danmakuAllowColor) "开" else "关", null),
                     SettingEntry(SettingId.DanmakuAllowSpecial, "允许特殊弹幕", if (prefs.danmakuAllowSpecial) "开" else "关", null),
+                )
+
+            "手柄设置" ->
+                listOf(
+                    SettingEntry(
+                        SettingId.GamepadRightStickEnabled,
+                        "右摇杆导航",
+                        if (prefs.gamepadRightStickEnabled) "开" else "关",
+                        "用右摇杆移动焦点（左摇杆/十字键始终可用）",
+                    ),
+                    SettingEntry(
+                        SettingId.GamepadDeadZone,
+                        "摇杆死区",
+                        "${prefs.gamepadDeadZonePercent}%",
+                        "摇杆偏移超过该比例才触发方向移动",
+                    ),
+                    SettingEntry(
+                        SettingId.GamepadMainL1Action,
+                        "主页 L1 键",
+                        GamepadMainActions.label(prefs.gamepadMainL1Action),
+                        null,
+                    ),
+                    SettingEntry(
+                        SettingId.GamepadMainR1Action,
+                        "主页 R1 键",
+                        GamepadMainActions.label(prefs.gamepadMainR1Action),
+                        null,
+                    ),
+                    SettingEntry(
+                        SettingId.GamepadMainStartAction,
+                        "主页 START 键",
+                        GamepadMainActions.label(prefs.gamepadMainStartAction),
+                        null,
+                    ),
                 )
 
             "关于应用" ->

@@ -102,6 +102,13 @@ enum class SettingId(
     DanmakuAllowColor("danmaku_allow_color"),
     DanmakuAllowSpecial("danmaku_allow_special"),
 
+    // 手柄设置
+    GamepadRightStickEnabled("gamepad_right_stick_enabled"),
+    GamepadDeadZone("gamepad_dead_zone"),
+    GamepadMainL1Action("gamepad_main_l1_action"),
+    GamepadMainR1Action("gamepad_main_r1_action"),
+    GamepadMainStartAction("gamepad_main_start_action"),
+
     // 关于应用
     PlayerKernelCheck("player_kernel_check"),
     AppVersion("app_version"),

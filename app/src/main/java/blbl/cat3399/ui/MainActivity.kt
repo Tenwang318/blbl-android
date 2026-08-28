@@ -27,6 +27,7 @@ import blbl.cat3399.core.log.AppLog
 import blbl.cat3399.core.log.CrashTracker
 import blbl.cat3399.core.net.BiliClient
 import blbl.cat3399.core.prefs.AppPrefs
+import blbl.cat3399.core.tv.GamepadMainActions
 import blbl.cat3399.core.tv.RemoteKeys
 import blbl.cat3399.core.ui.AppToast
 import blbl.cat3399.core.ui.BaseActivity
@@ -62,7 +63,7 @@ class MainActivity : BaseActivity(), SidebarFocusHost {
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var navAdapter: SidebarNavAdapter
-    private var needForceInitialSidebarFocus: Boolean = false
+    private var needForceInitialContentFocus: Boolean = false
     private var launchNavId: Int = SidebarNavAdapter.ID_HOME
     private var currentRootNavId: Int? = null
     private var lastMainFocusedView: WeakReference<View>? = null
@@ -104,7 +105,7 @@ class MainActivity : BaseActivity(), SidebarFocusHost {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val safeState = restoredState
-        needForceInitialSidebarFocus = safeState == null
+        needForceInitialContentFocus = safeState == null
         binding = ActivityMainBinding.inflate(layoutInflater.cloneInUserScale(this))
         setContentView(binding.root)
         Immersive.apply(this, BiliClient.prefs.fullscreenEnabled)
@@ -211,7 +212,7 @@ class MainActivity : BaseActivity(), SidebarFocusHost {
         syncSidebarNavState()
         syncSidebarExpansionWithPrefs()
         restoreFocusAfterResume()
-        forceInitialSidebarFocusIfNeeded()
+        forceInitialContentFocusIfNeeded()
         ensureInitialFocus()
         refreshSidebarUser()
         if (isUserInfoOverlayVisible()) {
@@ -440,23 +441,22 @@ class MainActivity : BaseActivity(), SidebarFocusHost {
 
     private fun handleGamepadButton(event: KeyEvent): Boolean {
         when (event.keyCode) {
-            KeyEvent.KEYCODE_BUTTON_L1 -> {
-                if (event.repeatCount > 0) return true
-                switchToPrevTab()
-                return true
-            }
-            KeyEvent.KEYCODE_BUTTON_R1 -> {
-                if (event.repeatCount > 0) return true
-                switchToNextTab()
-                return true
-            }
-            KeyEvent.KEYCODE_BUTTON_START -> {
-                if (event.repeatCount > 0) return true
-                toggleSidebarOverlay()
-                return true
-            }
+            KeyEvent.KEYCODE_BUTTON_L1 -> return handleMainGamepadAction(BiliClient.prefs.gamepadMainL1Action, event)
+            KeyEvent.KEYCODE_BUTTON_R1 -> return handleMainGamepadAction(BiliClient.prefs.gamepadMainR1Action, event)
+            KeyEvent.KEYCODE_BUTTON_START -> return handleMainGamepadAction(BiliClient.prefs.gamepadMainStartAction, event)
         }
         return false
+    }
+
+    private fun handleMainGamepadAction(action: String, event: KeyEvent): Boolean {
+        if (event.repeatCount > 0) return true
+        when (action) {
+            GamepadMainActions.PREV_TAB -> switchToPrevTab()
+            GamepadMainActions.NEXT_TAB -> switchToNextTab()
+            GamepadMainActions.TOGGLE_SIDEBAR -> toggleSidebarOverlay()
+            else -> return false
+        }
+        return true
     }
 
     private fun toggleSidebarOverlay() {
@@ -1127,6 +1127,15 @@ class MainActivity : BaseActivity(), SidebarFocusHost {
 
     private fun ensureInitialFocus() {
         if (currentFocus != null) return
+        if (!isSidebarExpanded) {
+            // The sidebar is an overlay; when it is hidden, initial focus belongs to main content.
+            binding.root.post {
+                if (currentFocus == null) {
+                    focusMainContentPrimaryItem()
+                }
+            }
+            return
+        }
         val pos = navAdapter.selectedAdapterPosition().takeIf { it >= 0 } ?: 0
         binding.recyclerSidebar.post {
             if (currentFocus != null) return@post
@@ -1144,13 +1153,19 @@ class MainActivity : BaseActivity(), SidebarFocusHost {
         }
     }
 
-    private fun forceInitialSidebarFocusIfNeeded() {
-        if (!needForceInitialSidebarFocus) return
-        val focused = currentFocus
-        if (focused == null || !FocusTreeUtils.isDescendantOf(focused, binding.recyclerSidebar)) {
-            focusSidebarFirstNav()
+    private fun focusMainContentPrimaryItem(): Boolean {
+        val rootFragment = currentRootFragment() ?: return false
+        val host = rootFragment as? TabContentSwitchFocusHost ?: return false
+        return host.requestFocusCurrentPagePrimaryItemFromContentSwitch()
+    }
+
+    private fun forceInitialContentFocusIfNeeded() {
+        if (!needForceInitialContentFocus) return
+        // Cold start keeps the sidebar overlay closed; put initial focus on main content instead.
+        if (currentFocus == null) {
+            focusMainContentPrimaryItem()
         }
-        needForceInitialSidebarFocus = false
+        needForceInitialContentFocus = false
     }
 
     private fun restoreFocusAfterResume() {
