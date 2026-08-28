@@ -81,7 +81,7 @@ class InstantTabPagerMediator(
         for (position in 0 until count) {
             val tab = tabLayout.newTab()
             configureTab(tab, position)
-            tabLayout.addTab(tab, setSelected = false)
+            tabLayout.addTab(tab, false)
         }
         val current = viewPager.currentItem
         if (current in 0 until count) {
