@@ -288,10 +288,10 @@ class MainActivity : BaseActivity(), SidebarFocusHost {
         // Only ensure sidebar visibility matches its current state.
         if (isSidebarExpanded) {
             binding.sidebar.visibility = View.VISIBLE
-            binding.sidebar_scrim.visibility = View.VISIBLE
+            binding.sidebarScrim.visibility = View.VISIBLE
         } else {
             binding.sidebar.visibility = View.GONE
-            binding.sidebar_scrim.visibility = View.GONE
+            binding.sidebarScrim.visibility = View.GONE
         }
     }
 
@@ -1367,9 +1367,9 @@ class MainActivity : BaseActivity(), SidebarFocusHost {
             if (focused != null && isInMainContainer(focused)) {
                 sidebarReturnFocus.capture(focused)
             }
-            binding.sidebar_scrim.visibility = View.VISIBLE
-            binding.sidebar_scrim.alpha = 0f
-            binding.sidebar_scrim.animate().alpha(1f).setDuration(200L).start()
+            binding.sidebarScrim.visibility = View.VISIBLE
+            binding.sidebarScrim.alpha = 0f
+            binding.sidebarScrim.animate().alpha(1f).setDuration(200L).start()
             binding.sidebar.visibility = View.VISIBLE
             binding.sidebar.translationX = -sidebarWidth
             binding.sidebar.animate()
@@ -1380,8 +1380,8 @@ class MainActivity : BaseActivity(), SidebarFocusHost {
                 }
                 .start()
         } else {
-            binding.sidebar_scrim.animate().alpha(0f).setDuration(200L).withEndAction {
-                binding.sidebar_scrim.visibility = View.GONE
+            binding.sidebarScrim.animate().alpha(0f).setDuration(200L).withEndAction {
+                binding.sidebarScrim.visibility = View.GONE
             }.start()
             binding.sidebar.animate()
                 .translationX(-sidebarWidth)

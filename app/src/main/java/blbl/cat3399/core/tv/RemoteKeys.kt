@@ -30,7 +30,7 @@ object RemoteKeys {
     }
 
     fun getConnectedGamepads(): List<InputDevice> {
-        return InputDevice.getDeviceIds().mapNotNull { id ->
+        return InputDevice.getDeviceIds().toList().mapNotNull { id ->
             InputDevice.getDevice(id)?.takeIf { it.sources and InputDevice.SOURCE_GAMEPAD == InputDevice.SOURCE_GAMEPAD }
         }
     }
