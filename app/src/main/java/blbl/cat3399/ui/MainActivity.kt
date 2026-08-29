@@ -488,8 +488,13 @@ class MainActivity : BaseActivity(), SidebarFocusHost {
             KeyEvent.KEYCODE_BUTTON_R1 -> return handleMainGamepadAction(BiliClient.prefs.gamepadMainR1Action, event)
             KeyEvent.KEYCODE_BUTTON_START -> return handleMainGamepadAction(BiliClient.prefs.gamepadMainStartAction, event)
             // wiliwili binds X to "refresh" on the home tab (home_recommends.cpp): refresh the
-            // current page through the existing RefreshKeyHandler pipeline.
-            KeyEvent.KEYCODE_BUTTON_X -> {
+            // current page through the existing RefreshKeyHandler pipeline. L2/R2 as fallbacks:
+            // on some devices (e.g. Retroid) the X keycode is captured by the system and never
+            // reaches the app.
+            KeyEvent.KEYCODE_BUTTON_X,
+            KeyEvent.KEYCODE_BUTTON_L2,
+            KeyEvent.KEYCODE_BUTTON_R2,
+            -> {
                 if (event.repeatCount > 0) return true
                 dispatchRefreshKeyToCurrentPage()
                 return true
