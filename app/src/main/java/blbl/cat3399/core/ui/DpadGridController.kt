@@ -220,7 +220,7 @@ internal class DpadGridController(
                             val pos = resolveAdapterPosition(v)
                             if (pos != null) {
                                 rememberLastKnownFocus(position = pos)
-                                handleDpadUp(pos)
+                                handleDpadUp(v, pos)
                             } else {
                                 // During adapter updates, a focused view can transiently report NO_POSITION.
                                 // Consume the event to prevent focus escaping to other containers.
@@ -670,27 +670,71 @@ internal class DpadGridController(
         return pos.takeIf { it != RecyclerView.NO_POSITION }
     }
 
-    private fun handleDpadUp(position: Int): Boolean {
-        if (!isInTopRowAtTop(position)) return false
-        val handled = callbacks.onTopEdge()
-        return if (config.consumeUpAtTopEdge) true else handled
+    private fun handleDpadUp(itemView: View, position: Int): Boolean {
+        // Mirror handleDpadDown: move focus explicitly instead of relying on the framework's
+        // focus-search, which is unreliable through StaggeredGrid layouts on some devices.
+        if (moveFocusWithinRecycler(itemView, View.FOCUS_UP)) return true
+
+        if (isInTopRowAtTop(position)) {
+            val handled = callbacks.onTopEdge()
+            return if (config.consumeUpAtTopEdge) true else handled
+        }
+
+        // Not in the top row but the direct search failed (staggered rows can return null):
+        // scroll up and focus the card one span above the current anchor.
+        if (recyclerView.canScrollVertically(-1)) {
+            val rootItem = recyclerView.findContainingItemView(itemView) ?: itemView
+            val dy = -(rootItem.height * config.scrollOnDownEdgeFactor).toInt().coerceAtLeast(1)
+            recyclerView.scrollBy(0, dy)
+            val adapter = recyclerView.adapter
+            val itemCount = adapter?.itemCount ?: 0
+            val spanCount = spanCountForLayoutManager()?.coerceAtLeast(1) ?: 1
+            val candidatePos = (position - spanCount).coerceIn(0, itemCount - 1)
+            recyclerView.postIfAlive(
+                isAlive = { installed && recyclerView.isAttachedToWindow && config.isEnabled() },
+            ) {
+                if (tryFocusNextUpFromCurrent()) return@postIfAlive
+                focusAdapterPosition(candidatePos)
+            }
+            return true
+        }
+        return false
+    }
+
+    private fun tryFocusNextUpFromCurrent(): Boolean {
+        if (!config.isEnabled()) return false
+        val focused = recyclerView.findFocus() ?: return false
+        if (!FocusTreeUtils.isDescendantOf(focused, recyclerView)) return false
+        val itemView = recyclerView.findContainingItemView(focused) ?: return false
+        val next = FocusFinder.getInstance().findNextFocus(recyclerView, itemView, View.FOCUS_UP)
+        if (next != null && FocusTreeUtils.isDescendantOf(next, recyclerView)) {
+            next.requestFocus()
+            return true
+        }
+        return false
     }
 
     private fun handleDpadLeft(itemView: View): Boolean {
-        val rootItem = recyclerView.findContainingItemView(itemView) ?: itemView
-        val next = FocusFinder.getInstance().findNextFocus(recyclerView, rootItem, View.FOCUS_LEFT)
-        if (next != null && FocusTreeUtils.isDescendantOf(next, recyclerView)) return false
+        if (moveFocusWithinRecycler(itemView, View.FOCUS_LEFT)) return true
         return callbacks.onLeftEdge()
     }
 
     private fun handleDpadRight(itemView: View): Boolean {
-        val rootItem = recyclerView.findContainingItemView(itemView) ?: itemView
-        val next = FocusFinder.getInstance().findNextFocus(recyclerView, rootItem, View.FOCUS_RIGHT)
-        if (next != null && FocusTreeUtils.isDescendantOf(next, recyclerView)) return false
+        if (moveFocusWithinRecycler(itemView, View.FOCUS_RIGHT)) return true
         if (!config.consumeRightEdge) return false
         callbacks.onRightEdge()
         // No outflow on the right edge.
         return true
+    }
+
+    private fun moveFocusWithinRecycler(itemView: View, direction: Int): Boolean {
+        val rootItem = recyclerView.findContainingItemView(itemView) ?: itemView
+        val next = FocusFinder.getInstance().findNextFocus(recyclerView, rootItem, direction)
+        if (next != null && FocusTreeUtils.isDescendantOf(next, recyclerView)) {
+            next.requestFocus()
+            return true
+        }
+        return false
     }
 
     private fun handleDpadDown(itemView: View, position: Int): Boolean {
