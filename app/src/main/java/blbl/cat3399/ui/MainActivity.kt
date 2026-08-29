@@ -367,7 +367,18 @@ class MainActivity : BaseActivity(), SidebarFocusHost {
         }
     }
 
+    private var lastKeyLogAtMs = 0L
+
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        val nowMs = SystemClock.uptimeMillis()
+        if (nowMs - lastKeyLogAtMs > 1000L) {
+            lastKeyLogAtMs = nowMs
+            AppLog.d(
+                "NavKey",
+                "key=${event.keyCode} action=${event.action} rep=${event.repeatCount} " +
+                    "src=${event.source} dev=${event.deviceId}",
+            )
+        }
         if (isUserInfoOverlayVisible()) {
             return super.dispatchKeyEvent(event)
         }

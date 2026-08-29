@@ -49,6 +49,7 @@ class GamepadMotionDispatcher(
         // A latched direction releases only below this fraction of the trigger point.
         // Kept close to 1.0: a deep hysteresis band lets a drifting stick latch a direction.
         private const val RELEASE_HYSTERESIS = 0.85f
+        private const val AXIS_LOG_INTERVAL_MS = 1000L
 
         // Neutral (stick center) auto-calibration: rest positions drift on worn sticks, which
         // would otherwise latch a direction permanently. Track the center with a slow EMA
@@ -65,9 +66,10 @@ class GamepadMotionDispatcher(
 
     private val navStates = Array(DIRECTION_COUNT) { NavState() }
     private var lastNavigateFocus: WeakReference<View>? = null
+    private var lastAxisLogAtMs = 0L
 
-    // Resting center for AXIS_X/Y/Z/RZ, auto-calibrated while the stick sits near center.
-    private val neutral = FloatArray(4)
+    // Resting center for AXIS_X/Y/Z/RZ and AXIS_HAT_X/HAT_Y, auto-calibrated while the axis sits near center.
+    private val neutral = FloatArray(6)
 
     private fun analogValue(event: MotionEvent, axis: Int, index: Int): Float {
         val raw = event.getAxisValue(axis)
@@ -95,8 +97,16 @@ class GamepadMotionDispatcher(
         val ly = analogValue(event, MotionEvent.AXIS_Y, 1)
         val rx = analogValue(event, MotionEvent.AXIS_Z, 2)
         val ry = analogValue(event, MotionEvent.AXIS_RZ, 3)
-        val hx = event.getAxisValue(MotionEvent.AXIS_HAT_X)
-        val hy = event.getAxisValue(MotionEvent.AXIS_HAT_Y)
+        val hx = analogValue(event, MotionEvent.AXIS_HAT_X, 4)
+        val hy = analogValue(event, MotionEvent.AXIS_HAT_Y, 5)
+
+        if (SystemClock.uptimeMillis() - lastAxisLogAtMs > AXIS_LOG_INTERVAL_MS) {
+            lastAxisLogAtMs = SystemClock.uptimeMillis()
+            AppLog.d(
+                TAG,
+                "axes lx=$lx ly=$ly rx=$rx ry=$ry hx=$hx hy=$hy src=${event.source} dev=${event.deviceId}",
+            )
+        }
 
         // wiliwili: NAV_<dir> = leftStick <dir> || rightStick <dir> || dpad <dir>.
         // Release hysteresis: a latched direction only releases when the axis falls back to
