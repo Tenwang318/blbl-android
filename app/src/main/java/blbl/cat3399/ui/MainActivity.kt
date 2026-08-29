@@ -117,6 +117,11 @@ class MainActivity : BaseActivity(), SidebarFocusHost {
         userInfoOverlay = binding.userInfoOverlay
         initUserInfoOverlay()
 
+        // Touch mode blocks focus requests on non-FITI views; sidebar controls must accept
+        // focus after any touch (see focusSidebarSelectedNav).
+        binding.btnSidebarLogin.isFocusableInTouchMode = true
+        binding.ivSidebarUser.isFocusableInTouchMode = true
+        binding.btnSidebarSettings.isFocusableInTouchMode = true
         binding.btnSidebarLogin.setOnClickListener { openQrLogin() }
         binding.ivSidebarUser.setOnClickListener {
             if (!BiliClient.cookies.hasSessData()) {
@@ -179,25 +184,30 @@ class MainActivity : BaseActivity(), SidebarFocusHost {
                     if (supportFragmentManager.popBackStackImmediate()) {
                         return
                     }
-                    // When sidebar overlay is open, Back/B closes it and returns focus to main.
+                    // Every back press counts toward the double-press exit window, so the
+                    // multi-stage back flow (close sidebar → home → exit) never resets it.
+                    val now = SystemClock.uptimeMillis()
+                    val isSecondPress = now - lastBackAtMs <= BACK_DOUBLE_PRESS_WINDOW_MS
+                    lastBackAtMs = now
+
                     val focused = currentFocus
-                    if (focused != null && isInSidebar(focused)) {
-                        if (isSidebarExpanded) {
-                            setSidebarExpanded(expanded = false)
-                            return
-                        }
-                        if (shouldFinishOnBackPress()) finish()
-                        return
-                    }
+                    val sidebarOpen = isSidebarExpanded || (focused != null && isInSidebar(focused))
                     val current = currentRootFragment()
                     val handled = (current as? BackPressHandler)?.handleBackPressed() == true
                     AppLog.d("Back", "back current=${current?.javaClass?.simpleName} handled=$handled")
                     if (handled) return
+
                     if (!isAtLaunchRoot(current)) {
+                        if (sidebarOpen) setSidebarExpanded(expanded = false)
                         navAdapter.select(launchNavId, trigger = true)
                         return
                     }
-                    if (shouldFinishOnBackPress()) finish()
+                    if (sidebarOpen) {
+                        // Home with the sidebar open: first back closes the sidebar.
+                        setSidebarExpanded(expanded = false)
+                        return
+                    }
+                    if (isSecondPress) finish() else AppToast.show(this@MainActivity, "再按一次退出应用")
                 }
             },
         )
@@ -452,8 +462,9 @@ class MainActivity : BaseActivity(), SidebarFocusHost {
                 }
 
                 KeyEvent.KEYCODE_DPAD_RIGHT -> {
-                    if (focused != null && isInSidebar(focused)) {
-                        focusMainFromSidebar()
+                    // While the sidebar overlay is open, focus stays inside it (only
+                    // B/Start/back closes it); do not let RIGHT escape into the content.
+                    if (focused != null && isInSidebar(focused) && isSidebarExpanded) {
                         return true
                     }
                 }
@@ -976,15 +987,6 @@ class MainActivity : BaseActivity(), SidebarFocusHost {
     private fun openQrLogin() {
         AppLog.i("MainActivity", "openQrLogin")
         startActivity(Intent(this, QrLoginActivity::class.java))
-    }
-
-    private fun shouldFinishOnBackPress(): Boolean {
-        val now = SystemClock.uptimeMillis()
-        val isSecond = now - lastBackAtMs <= BACK_DOUBLE_PRESS_WINDOW_MS
-        if (isSecond) return true
-        lastBackAtMs = now
-        AppToast.show(this, "再按一次退出应用")
-        return false
     }
 
     private fun showFirstLaunchDisclaimerIfNeeded() {

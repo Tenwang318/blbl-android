@@ -74,6 +74,9 @@ class SidebarNavAdapter(
     override fun onBindViewHolder(holder: Vh, position: Int) {
         val item = items[position]
         val selected = item.id == selectedId
+        // A touchscreen tap puts the window into touch mode, where non-FITI views refuse
+        // focus; sidebar items must accept focus regardless (gamepad navigation).
+        holder.itemView.isFocusableInTouchMode = true
         AppLog.d(
             "Nav",
             "bind pos=$position id=${item.id} selected=$selected labels=$showLabelsAlways t=${SystemClock.uptimeMillis()}",
