@@ -35,6 +35,7 @@ import blbl.cat3399.core.ui.FocusReturn
 import blbl.cat3399.core.ui.FocusTreeUtils
 import blbl.cat3399.core.ui.Immersive
 import blbl.cat3399.core.ui.TabContentSwitchFocusHost
+import blbl.cat3399.core.ui.takeFocusInTouchMode
 import blbl.cat3399.core.ui.cloneInUserScale
 import blbl.cat3399.core.ui.dispatchToAncestorDpadItemKeyHandler
 import blbl.cat3399.core.ui.popup.AppPopup
@@ -159,6 +160,12 @@ class MainActivity : BaseActivity(), SidebarFocusHost {
                     lastMainFocusAtMs = SystemClock.uptimeMillis()
                     maybeCollapseSidebarAfterMainFocusTransfer(newFocus)
                 }
+                if (newFocus == null) {
+                    // Focus dropped entirely (e.g. a view-layer popup was dismissed): re-seed
+                    // content focus, otherwise the page stays focusless until a key lands right.
+                    needForceInitialContentFocus = true
+                    forceInitialContentFocusIfNeeded()
+                }
             }.also { binding.root.viewTreeObserver.addOnGlobalFocusChangeListener(it) }
 
         onBackPressedDispatcher.addCallback(
@@ -215,7 +222,7 @@ class MainActivity : BaseActivity(), SidebarFocusHost {
         restoreFocusAfterResume()
         // Popups (first-launch disclaimer, update prompt) can outlive the initial focus
         // retry window; re-arm it whenever we come back to the foreground with no focus.
-        if (currentFocus == null) needForceInitialContentFocus = true
+        if (!isFocusOnRealContent()) needForceInitialContentFocus = true
         forceInitialContentFocusIfNeeded()
         ensureInitialFocus()
         refreshSidebarUser()
@@ -1185,23 +1192,29 @@ class MainActivity : BaseActivity(), SidebarFocusHost {
         }
     }
 
+    /** True when a real content view holds focus; the decor/root frame does not count. */
+    private fun isFocusOnRealContent(): Boolean {
+        val focused = currentFocus ?: return false
+        return focused !== window.decorView && focused.parent != null
+    }
+
     private fun focusMainContentPrimaryItem(): Boolean {
         val rootFragment = currentRootFragment() ?: return false
         val host = rootFragment as? TabContentSwitchFocusHost
         if (host != null && host.requestFocusCurrentPagePrimaryItemFromContentSwitch()) return true
         // Generic fallback for roots without the focus-host interface: focus the first
         // focusable descendant inside the main container.
-        return binding.mainContainer.requestFocus()
+        return binding.mainContainer.takeFocusInTouchMode(binding.mainContainer)
     }
 
 
     private fun forceInitialContentFocusIfNeeded() {
         if (!needForceInitialContentFocus) return
         needForceInitialContentFocus = false
-        // The launch page's ViewPager2 child fragments are created after the first layout, so
-        // retry until something actually takes focus (the page fragments also defer to their
-        // own "focus first card when data arrives" handling).
-        scheduleInitialContentFocusRetry(attemptsLeft = 25)
+        // The launch page's ViewPager2 child fragments are created after the first layout, and
+        // startup popups (disclaimer/update) can hold the screen for a long time — keep retrying
+        // for ~60s; the check is trivial and stops as soon as any real view holds focus.
+        scheduleInitialContentFocusRetry(attemptsLeft = 300)
     }
 
     private fun scheduleInitialContentFocusRetry(attemptsLeft: Int) {
@@ -1209,9 +1222,9 @@ class MainActivity : BaseActivity(), SidebarFocusHost {
         val decor = window?.decorView ?: return
         decor.postDelayed({
             if (isFinishing || isDestroyed) return@postDelayed
-            if (currentFocus != null) return@postDelayed
+            if (isFocusOnRealContent()) return@postDelayed
             focusMainContentPrimaryItem()
-            if (currentFocus == null) {
+            if (!isFocusOnRealContent()) {
                 scheduleInitialContentFocusRetry(attemptsLeft - 1)
             }
         }, 200L)

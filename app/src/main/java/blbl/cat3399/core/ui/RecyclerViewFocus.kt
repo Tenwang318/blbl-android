@@ -1,5 +1,6 @@
 package blbl.cat3399.core.ui
 
+import android.view.View
 import androidx.recyclerview.widget.RecyclerView
 import blbl.cat3399.R
 
@@ -19,6 +20,23 @@ import blbl.cat3399.R
  *
  * Callers should clear their own "pending focus" flags only when [onFocused] runs.
  */
+/**
+ * Places focus on [target] even when the window is in touch mode (a single screen touch puts
+ * the whole window into touch mode, where normal focusable views refuse focus and a TV/gamepad
+ * app would go dead). Exits touch mode via the decor view and moves focus onto the target.
+ */
+fun View.takeFocusInTouchMode(target: View): Boolean {
+    if (target.requestFocus()) return true
+    if (!target.isInTouchMode) return false
+    val decor = target.rootView
+    decor.setFocusableInTouchMode(true)
+    if (!decor.requestFocus()) return false
+    if (target.requestFocus()) return true
+    // The touch-mode flag settles a frame later; try the target once more.
+    target.post { if (target.isInTouchMode.not()) target.requestFocus() }
+    return false
+}
+
 internal fun RecyclerView.requestFocusAdapterPositionReliable(
     position: Int,
     smoothScroll: Boolean,
@@ -102,9 +120,11 @@ private fun RecyclerView.requestFocusAdapterPositionReliableInternal(
     if (position !in 0 until itemCount) return false
 
     val itemView = findViewHolderForAdapterPosition(position)?.itemView
-    if (itemView != null && itemView.requestFocus()) {
-        onFocused()
-        return true
+    if (itemView != null) {
+        if (takeFocusInTouchMode(itemView)) {
+            onFocused()
+            return true
+        }
     }
 
     // Scroll once at the beginning of the request to bring the target into viewport.

@@ -2,6 +2,8 @@ package blbl.cat3399.core.ui
 
 import android.os.Build
 import android.os.SystemClock
+import blbl.cat3399.core.log.AppLog
+import blbl.cat3399.core.ui.takeFocusInTouchMode
 import android.view.FocusFinder
 import android.view.KeyEvent
 import android.view.View
@@ -190,6 +192,11 @@ internal class DpadGridController(
     private val childListener =
         object : RecyclerView.OnChildAttachStateChangeListener {
             override fun onChildViewAttachedToWindow(view: View) {
+                // A single touchscreen tap puts the whole window into touch mode, where views
+                // without focusableInTouchMode refuse focus entirely — on hybrid touch+gamepad
+                // devices that would leave the page focusless after any touch. Cards draw their
+                // own focus background, so allowing focus in touch mode is safe here.
+                view.isFocusableInTouchMode = true
                 if (config.enableCenterLongPressToLongClick) {
                 view.setTag(R.id.tag_long_press_handled, false)
                 }
@@ -434,7 +441,11 @@ internal class DpadGridController(
      */
     fun recoverFocusIfParkedOnRecycler(): Boolean {
         if (!installed) return false
-        if (!recyclerView.isFocused) return false
+        if (!recyclerView.isFocused) {
+            // Touch mode blocks every focus request below; a parked recovery needs it off.
+            recyclerView.takeFocusInTouchMode(recyclerView)
+            if (!recyclerView.isFocused) return false
+        }
         val moved = handleRecyclerFocusedDpadDown()
         // Dataset resets rebind children a frame later and the detach-protection path can
         // park focus back on the RecyclerView after we just recovered; re-check after the
