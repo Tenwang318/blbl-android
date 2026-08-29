@@ -85,12 +85,13 @@ class LiveAreaIndexFragment : Fragment(), LivePageFocusTarget, LivePageReturnFoc
                             return true
                         }
 
-                        override fun onLeftEdge(): Boolean {
-                            return switchToPrevTabFromContentEdge()
+                                                override fun onLeftEdge(): Boolean {
+                            // Tabs switch only via LB/RB; direction keys never leave the grid.
+                            return false
                         }
 
                         override fun onRightEdge() {
-                            switchToNextTabFromContentEdge()
+                            // Tabs switch only via LB/RB; direction keys never leave the grid.
                         }
 
                         override fun canLoadMore(): Boolean = false

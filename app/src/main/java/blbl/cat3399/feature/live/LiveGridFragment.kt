@@ -131,11 +131,12 @@ class LiveGridFragment : Fragment(), LivePageFocusTarget, RefreshKeyHandler {
                                 focusBackButtonIfAvailable()
                                 return true
                             }
-                            return switchToPrevTabFromContentEdge()
+                            // Tabs switch only via LB/RB; direction keys never leave the grid.
+                            return false
                         }
 
                         override fun onRightEdge() {
-                            if (enableTabFocus) switchToNextTabFromContentEdge()
+                            // Tabs switch only via LB/RB.
                         }
 
                         override fun canLoadMore(): Boolean = !paging.snapshot().endReached

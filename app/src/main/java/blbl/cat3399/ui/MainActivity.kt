@@ -520,11 +520,32 @@ class MainActivity : BaseActivity(), SidebarFocusHost {
         return true
     }
 
+    private var sidebarFocusWatchToken = 0
+
+    /**
+     * While the sidebar overlay is open (browsing mode), focus belongs to the sidebar: pages
+     * switch behind it and their own focus hooks must not steal focus away. Yank focus back
+     * to the selected sidebar item for as long as the sidebar stays open.
+     */
+    private fun enforceSidebarFocusWhileOpen() {
+        if (!isSidebarExpanded) return
+        val token = ++sidebarFocusWatchToken
+        fun tick() {
+            if (!isSidebarExpanded || isFinishing || isDestroyed) return
+            if (sidebarFocusWatchToken != token) return
+            val focusedInSidebar = currentFocus?.let { isInSidebar(it) } == true
+            if (!focusedInSidebar) focusSidebarSelectedNav()
+            binding.root.postDelayed({ tick() }, 250L)
+        }
+        binding.root.postDelayed({ tick() }, 150L)
+    }
+
     private fun toggleSidebarOverlay() {
         if (isSidebarExpanded) {
             setSidebarExpanded(expanded = false)
         } else {
             setSidebarExpanded(expanded = true)
+            enforceSidebarFocusWhileOpen()
         }
     }
 
@@ -1212,6 +1233,8 @@ class MainActivity : BaseActivity(), SidebarFocusHost {
     }
 
     private fun focusMainContentPrimaryItem(): Boolean {
+        // Browsing via the sidebar keeps focus in the sidebar; the page switches behind it.
+        if (isSidebarExpanded) return focusSidebarSelectedNav()
         val rootFragment = currentRootFragment() ?: return false
         val host = rootFragment as? TabContentSwitchFocusHost
         if (host != null && host.requestFocusCurrentPagePrimaryItemFromContentSwitch()) return true
