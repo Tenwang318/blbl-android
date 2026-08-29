@@ -168,9 +168,10 @@ internal class DpadGridController(
                     if (pendingFocusAfterLoadMoreAnchorPos != RecyclerView.NO_POSITION) {
                         clearPendingFocusAfterLoadMore()
                     }
-                    // We intentionally don't add special handling here: let the system focus-search
-                    // move focus out of the RecyclerView (e.g. to tabs/header) if applicable.
-                    false
+                    // Recover onto a real card: with the sidebar hidden and tabs out of the
+                    // focus traversal, system focus-search from the RecyclerView has nowhere
+                    // to go and navigation would be dead.
+                    handleRecyclerFocusedDpadDown()
                 }
 
                 KeyEvent.KEYCODE_DPAD_LEFT,
@@ -179,7 +180,7 @@ internal class DpadGridController(
                     if (pendingFocusAfterLoadMoreAnchorPos != RecyclerView.NO_POSITION) {
                         clearPendingFocusAfterLoadMore()
                     }
-                    false
+                    handleRecyclerFocusedDpadDown()
                 }
 
                 else -> false

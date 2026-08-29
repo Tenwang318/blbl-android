@@ -47,7 +47,14 @@ class GamepadMotionDispatcher(
         private const val DIRECTION_COUNT = 4
 
         // A latched direction releases only below this fraction of the trigger point.
-        private const val RELEASE_HYSTERESIS = 0.6f
+        // Kept close to 1.0: a deep hysteresis band lets a drifting stick latch a direction.
+        private const val RELEASE_HYSTERESIS = 0.85f
+
+        // Neutral (stick center) auto-calibration: rest positions drift on worn sticks, which
+        // would otherwise latch a direction permanently. Track the center with a slow EMA
+        // that only adapts while the axis sits near the current center.
+        private const val NEUTRAL_ADAPT_DELTA = 0.2f
+        private const val NEUTRAL_ADAPT_ALPHA = 0.002f
     }
 
     private class NavState {
@@ -58,6 +65,18 @@ class GamepadMotionDispatcher(
 
     private val navStates = Array(DIRECTION_COUNT) { NavState() }
     private var lastNavigateFocus: WeakReference<View>? = null
+
+    // Resting center for AXIS_X/Y/Z/RZ, auto-calibrated while the stick sits near center.
+    private val neutral = FloatArray(4)
+
+    private fun analogValue(event: MotionEvent, axis: Int, index: Int): Float {
+        val raw = event.getAxisValue(axis)
+        val center = neutral[index]
+        if (kotlin.math.abs(raw - center) < NEUTRAL_ADAPT_DELTA) {
+            neutral[index] = center + (raw - center) * NEUTRAL_ADAPT_ALPHA
+        }
+        return raw - neutral[index]
+    }
 
     private fun triggerValue(): Float = BiliClient.prefs.gamepadDeadZonePercent / 100f
 
@@ -72,10 +91,10 @@ class GamepadMotionDispatcher(
         val trigger = triggerValue()
         val rightStickEnabled = BiliClient.prefs.gamepadRightStickEnabled
 
-        val lx = event.getAxisValue(MotionEvent.AXIS_X)
-        val ly = event.getAxisValue(MotionEvent.AXIS_Y)
-        val rx = event.getAxisValue(MotionEvent.AXIS_Z)
-        val ry = event.getAxisValue(MotionEvent.AXIS_RZ)
+        val lx = analogValue(event, MotionEvent.AXIS_X, 0)
+        val ly = analogValue(event, MotionEvent.AXIS_Y, 1)
+        val rx = analogValue(event, MotionEvent.AXIS_Z, 2)
+        val ry = analogValue(event, MotionEvent.AXIS_RZ, 3)
         val hx = event.getAxisValue(MotionEvent.AXIS_HAT_X)
         val hy = event.getAxisValue(MotionEvent.AXIS_HAT_Y)
 

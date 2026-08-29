@@ -382,8 +382,10 @@ class VideoGridFragment : Fragment(), RefreshKeyHandler, TabSwitchFocusTarget {
 
         if (!this::adapter.isInitialized) return false
         if (adapter.itemCount <= 0) {
-            binding.recycler.requestFocus()
-            return true
+            // Data not ready: keep the pending flags alive so the load-completion path
+            // focuses the first real card. Parking focus on the RecyclerView itself would
+            // leave an invisible full-surface focus state with dead navigation.
+            return false
         }
 
         val targetPosition = resolvePendingFocusTarget(itemCount = adapter.itemCount)
