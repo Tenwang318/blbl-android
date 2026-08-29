@@ -206,6 +206,7 @@ class VideoGridFragment : Fragment(), RefreshKeyHandler, TabSwitchFocusTarget {
         viewportFillMonitor?.scheduleCheck()
         maybeTriggerInitialLoad()
         maybeConsumePendingFocusFirstCard()
+        dpadGridController?.recoverFocusIfParkedOnRecycler()
     }
 
     override fun handleRefreshKey(): Boolean {
@@ -293,6 +294,7 @@ class VideoGridFragment : Fragment(), RefreshKeyHandler, TabSwitchFocusTarget {
                         }
                         maybeConsumePendingFocusFirstCard()
                         dpadGridController?.consumePendingFocusAfterLoadMore()
+                        dpadGridController?.recoverFocusIfParkedOnRecycler()
                         viewportFillMonitor?.scheduleCheck()
                     }
                 }

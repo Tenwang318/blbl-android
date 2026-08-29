@@ -427,6 +427,17 @@ internal class DpadGridController(
         return false
     }
 
+    /**
+     * When focus is parked on the RecyclerView itself (startup, dataset resets, detached-child
+     * protection), move it onto the first visible card. Called after data loads and on resume
+     * so the user always sees a real, highlighted item instead of an invisible parked state.
+     */
+    fun recoverFocusIfParkedOnRecycler(): Boolean {
+        if (!installed) return false
+        if (!recyclerView.isFocused) return false
+        return handleRecyclerFocusedDpadDown()
+    }
+
     private fun handleRecyclerFocusedDpadDown(): Boolean {
         // When a load-more focus jump is pending, keep focus "parked" on RecyclerView until the
         // new items are appended and consumePendingFocusAfterLoadMore() moves focus to the target.
