@@ -57,6 +57,9 @@ class SettingsEntryAdapter(
 
     class Vh(private val binding: ItemSettingEntryBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(item: SettingEntry, onClick: (SettingEntry) -> Unit) {
+            // Touch mode blocks focus requests on non-FITI views (gamepad navigation).
+            binding.root.isFocusable = true
+            binding.root.isFocusableInTouchMode = true
             binding.root.tag = item.id
             binding.tvTitle.text = item.title
             if (item.value.isBlank()) {

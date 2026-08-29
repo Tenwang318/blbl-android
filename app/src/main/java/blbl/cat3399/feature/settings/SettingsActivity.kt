@@ -70,6 +70,8 @@ class SettingsActivity : BaseActivity() {
                 importConfigLauncher = importConfigLauncher,
             )
 
+        binding.btnBack.isFocusable = true
+        binding.btnBack.isFocusableInTouchMode = true
         binding.btnBack.setOnClickListener { finish() }
 
         leftAdapter = SettingsLeftAdapter { index -> renderer.showSection(index, keepScroll = false) }

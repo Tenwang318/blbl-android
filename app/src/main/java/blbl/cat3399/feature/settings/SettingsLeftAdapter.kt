@@ -54,8 +54,17 @@ class SettingsLeftAdapter(
 
     class Vh(private val binding: ItemSettingsLeftBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(text: String, selected: Boolean, onClick: () -> Unit) {
+            // Touch mode blocks focus requests on non-FITI views; the section list must accept
+            // D-pad focus after the screen is opened by touch.
+            binding.root.isFocusable = true
+            binding.root.isFocusableInTouchMode = true
             binding.tvTitle.text = text
             binding.root.isSelected = selected
+            // Focus-driven section switching: highlighting a section with the D-pad switches
+            // to it (click still works the same).
+            binding.root.setOnFocusChangeListener { _, hasFocus ->
+                if (hasFocus) onClick()
+            }
             val ctx = binding.root.context
             binding.root.setCardBackgroundColor(
                 if (selected) {
