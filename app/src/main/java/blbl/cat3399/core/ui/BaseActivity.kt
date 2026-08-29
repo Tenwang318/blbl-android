@@ -71,12 +71,6 @@ open class BaseActivity : AppCompatActivity() {
         }
         restoredState = sanitizeSavedInstanceState(savedInstanceState)
         super.onCreate(restoredState)
-        // Views in this app draw their own focus backgrounds; the system's default focus
-        // highlight would paint a full-surface wash when focus transiently lands on a
-        // container (RecyclerView / page root) instead of an item.
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            window.setDefaultFocusHighlightEnabled(false)
-        }
         createdUiScaleFactor = UiScale.factor(this)
     }
 
