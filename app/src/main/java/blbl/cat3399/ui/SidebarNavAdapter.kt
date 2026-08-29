@@ -21,6 +21,8 @@ class SidebarNavAdapter(
     )
 
     private val items = ArrayList<NavItem>()
+
+    private val SELECT_PAYLOAD = Any()
     private var selectedId: Int = ID_HOME
     private var showLabelsAlways: Boolean = false
 
@@ -51,8 +53,10 @@ class SidebarNavAdapter(
 
         val prevPos = items.indexOfFirst { it.id == prevId }
         val newPos = items.indexOfFirst { it.id == id }
-        if (prevPos >= 0) notifyItemChanged(prevPos)
-        if (newPos >= 0) notifyItemChanged(newPos)
+        // Payload change: rebind only the selection visuals; a full rebind can transiently
+        // drop focus from the newly selected item (focus-scale animator replays = icon bounce).
+        if (prevPos >= 0) notifyItemChanged(prevPos, SELECT_PAYLOAD)
+        if (newPos >= 0 && newPos != prevPos) notifyItemChanged(newPos, SELECT_PAYLOAD)
 
         if (trigger) items.firstOrNull { it.id == id }?.let { onClick(it) }
     }
@@ -69,6 +73,16 @@ class SidebarNavAdapter(
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Vh {
         val binding = ItemSidebarNavBinding.inflate(LayoutInflater.from(parent.context), parent, false)
         return Vh(binding)
+    }
+
+    override fun onBindViewHolder(holder: Vh, position: Int, payloads: List<Any>) {
+        if (payloads.isNotEmpty()) {
+            // Partial rebind for selection changes: keeps the focused item view intact so
+            // focus (and its scale animator) is not reset on every selection change.
+            holder.bindSelection(items[position].id == selectedId, showLabelsAlways)
+            return
+        }
+        onBindViewHolder(holder, position)
     }
 
     override fun onBindViewHolder(holder: Vh, position: Int) {
@@ -90,6 +104,15 @@ class SidebarNavAdapter(
     override fun getItemCount(): Int = items.size
 
     class Vh(private val binding: ItemSidebarNavBinding) : RecyclerView.ViewHolder(binding.root) {
+        fun bindSelection(selected: Boolean, showLabelsAlways: Boolean) {
+            binding.tvLabel.visibility = if (showLabelsAlways || selected) View.VISIBLE else View.GONE
+            val ctx = binding.root.context
+            binding.card.setCardBackgroundColor(
+                if (selected) ThemeColor.resolve(ctx, R.attr.blblAccentContainer, R.color.blbl_surface) else 0x00000000,
+            )
+            binding.card.isSelected = selected
+        }
+
         fun bind(
             item: NavItem,
             selected: Boolean,

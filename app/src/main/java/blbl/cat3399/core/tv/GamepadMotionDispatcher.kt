@@ -1,6 +1,8 @@
 package blbl.cat3399.core.tv
 
 import android.app.Activity
+import android.os.Handler
+import android.os.Looper
 import android.os.SystemClock
 import android.view.InputDevice
 import android.view.KeyCharacterMap
@@ -66,6 +68,27 @@ class GamepadMotionDispatcher(
 
     private val navStates = Array(DIRECTION_COUNT) { NavState() }
     private var lastNavigateFocus: WeakReference<View>? = null
+
+    // Repeats are driven by this ticker, not by the motion-event stream: a digital D-pad held
+    // down stops producing motion events entirely (analog sticks keep micro-varying), so an
+    // event-driven repeat would never fire for it.
+    private val repeatHandler = Handler(Looper.getMainLooper())
+    private val repeatTicker = object : Runnable {
+        override fun run() {
+            val now = SystemClock.uptimeMillis()
+            for ((direction, state) in navStates.withIndex()) {
+                if (!state.pressed) continue
+                if (now >= state.nextRepeatAtMs) {
+                    if (navigate(direction, isRepeat = true)) {
+                        state.repeatCount++
+                        dispatchDpadKey(directionToKeyCode(direction), KeyEvent.ACTION_DOWN, state.repeatCount)
+                    }
+                    state.nextRepeatAtMs = now + REPEAT_DELAY_MS
+                }
+            }
+            repeatHandler.postDelayed(this, 50L)
+        }
+    }
     private var lastAxisLogAtMs = 0L
 
     // Resting center for AXIS_X/Y/Z/RZ and AXIS_HAT_X/HAT_Y, auto-calibrated while the axis sits near center.
@@ -89,6 +112,9 @@ class GamepadMotionDispatcher(
         if (event.action != MotionEvent.ACTION_MOVE) {
             return false
         }
+
+        repeatHandler.removeCallbacks(repeatTicker)
+        repeatHandler.postDelayed(repeatTicker, 50L)
 
         val trigger = triggerValue()
         val rightStickEnabled = BiliClient.prefs.gamepadRightStickEnabled
@@ -155,16 +181,6 @@ class GamepadMotionDispatcher(
             return true
         }
 
-        if (now >= state.nextRepeatAtMs) {
-            // Held: fire a repeat only when focus actually moved since the last navigation
-            // (borealis skips repeats while repetitionOldFocus == currentFocus).
-            if (navigate(direction, isRepeat = true)) {
-                state.repeatCount++
-                dispatchDpadKey(keyCode, KeyEvent.ACTION_DOWN, state.repeatCount)
-            }
-            state.nextRepeatAtMs = now + REPEAT_DELAY_MS
-            return true
-        }
         return false
     }
 
