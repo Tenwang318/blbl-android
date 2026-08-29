@@ -87,27 +87,9 @@ class CustomPageFragment : Fragment(), TabContentSwitchFocusHost, BackPressHandl
         val pageBackHandler = findCurrentViewPagerChildFragmentAs<BackPressHandler>(b.viewPager)
         if (pageBackHandler?.handleBackPressed() == true) return true
 
-        return when (scheme) {
-            AppPrefs.MAIN_BACK_FOCUS_SCHEME_A -> focusSelectedTab()
-            AppPrefs.MAIN_BACK_FOCUS_SCHEME_B -> {
-                if (b.viewPager.currentItem != 0) {
-                    pendingFocusPrimaryItemFromBackToTab0 = true
-                    pendingFocusPrimaryItemFromContentSwitch = false
-                    pendingBackToTab0RequestToken++
-                    pendingBackToTab0AttemptsLeft = 30
-                    b.viewPager.setCurrentItem(0, false)
-                    true
-                } else {
-                    (activity as? SidebarFocusHost)?.requestFocusSidebarSelectedNav() == true
-                }
-            }
-
-            AppPrefs.MAIN_BACK_FOCUS_SCHEME_C -> {
-                (activity as? SidebarFocusHost)?.requestFocusSidebarSelectedNav() == true
-            }
-
-            else -> focusSelectedTab()
-        }
+                // Tabs are switched with LB/RB only; back always follows the standard
+        // flow (back to home / double-press to exit) instead of the tab strip.
+        return false
     }
 
     override fun onDestroyView() {

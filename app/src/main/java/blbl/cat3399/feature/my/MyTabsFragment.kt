@@ -172,24 +172,9 @@ class MyTabsFragment : Fragment(), MyTabContentSwitchFocusHost, BackPressHandler
         val inContent = b.viewPager.hasFocus() && !b.tabLayout.hasFocus()
         if (!inContent) return false
 
-        return when (scheme) {
-            AppPrefs.MAIN_BACK_FOCUS_SCHEME_A -> focusSelectedTab()
-            AppPrefs.MAIN_BACK_FOCUS_SCHEME_B -> {
-                if (b.viewPager.currentItem != 0) {
-                    pendingFocusFirstItemFromContentSwitch = true
-                    // Use non-smooth switch: smooth scrolling may trigger intermediate onPageSelected callbacks
-                    // and consume the pending focus restore on the wrong page.
-                    b.viewPager.setCurrentItem(0, false)
-                    true
-                } else {
-                    (activity as? SidebarFocusHost)?.requestFocusSidebarSelectedNav() == true
-                }
-            }
-            AppPrefs.MAIN_BACK_FOCUS_SCHEME_C -> {
-                (activity as? SidebarFocusHost)?.requestFocusSidebarSelectedNav() == true
-            }
-            else -> focusSelectedTab()
-        }
+                // Tabs are switched with LB/RB only; back always follows the standard
+        // flow (back to home / double-press to exit) instead of the tab strip.
+        return false
     }
 
     override fun onDestroyView() {
