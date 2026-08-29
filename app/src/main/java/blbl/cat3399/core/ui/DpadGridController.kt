@@ -435,7 +435,23 @@ internal class DpadGridController(
     fun recoverFocusIfParkedOnRecycler(): Boolean {
         if (!installed) return false
         if (!recyclerView.isFocused) return false
-        return handleRecyclerFocusedDpadDown()
+        val moved = handleRecyclerFocusedDpadDown()
+        // Dataset resets rebind children a frame later and the detach-protection path can
+        // park focus back on the RecyclerView after we just recovered; re-check after the
+        // layout settles. Intentional parks (load-more wait) are respected by the handler.
+        recyclerView.postDelayed(
+            {
+                if (installed && recyclerView.isFocused) handleRecyclerFocusedDpadDown()
+            },
+            400L,
+        )
+        recyclerView.postDelayed(
+            {
+                if (installed && recyclerView.isFocused) handleRecyclerFocusedDpadDown()
+            },
+            1000L,
+        )
+        return moved
     }
 
     private fun handleRecyclerFocusedDpadDown(): Boolean {
