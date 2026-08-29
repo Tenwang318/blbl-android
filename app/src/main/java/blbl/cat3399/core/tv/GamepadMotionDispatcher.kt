@@ -45,6 +45,9 @@ class GamepadMotionDispatcher(
         private const val DIRECTION_LEFT = 2
         private const val DIRECTION_RIGHT = 3
         private const val DIRECTION_COUNT = 4
+
+        // A latched direction releases only below this fraction of the trigger point.
+        private const val RELEASE_HYSTERESIS = 0.6f
     }
 
     private class NavState {
@@ -77,10 +80,18 @@ class GamepadMotionDispatcher(
         val hy = event.getAxisValue(MotionEvent.AXIS_HAT_Y)
 
         // wiliwili: NAV_<dir> = leftStick <dir> || rightStick <dir> || dpad <dir>.
-        val pressedUp = hy < -trigger || (rightStickEnabled && ry < -trigger)
-        val pressedDown = hy > trigger || (rightStickEnabled && ry > trigger)
-        val pressedLeft = hx < -trigger || (rightStickEnabled && rx < -trigger)
-        val pressedRight = hx > trigger || (rightStickEnabled && rx > trigger)
+        // Release hysteresis: a latched direction only releases when the axis falls back to
+        // 60% of the trigger point, so a stick hovering around the threshold keeps repeating
+        // instead of flickering press/release (which kills the auto-repeat).
+        val release = trigger * RELEASE_HYSTERESIS
+        val pressedUp = hy < -trigger || (rightStickEnabled && ry < -trigger) ||
+            (navStates[DIRECTION_UP].pressed && hy < -release)
+        val pressedDown = hy > trigger || (rightStickEnabled && ry > trigger) ||
+            (navStates[DIRECTION_DOWN].pressed && hy > release)
+        val pressedLeft = hx < -trigger || (rightStickEnabled && rx < -trigger) ||
+            (navStates[DIRECTION_LEFT].pressed && hx < -release)
+        val pressedRight = hx > trigger || (rightStickEnabled && rx > trigger) ||
+            (navStates[DIRECTION_RIGHT].pressed && hx > release)
 
         val now = SystemClock.uptimeMillis()
         val firedUp = updateNav(DIRECTION_UP, KeyEvent.KEYCODE_DPAD_UP, pressedUp, now)

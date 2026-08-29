@@ -213,6 +213,9 @@ class MainActivity : BaseActivity(), SidebarFocusHost {
         syncSidebarNavState()
         syncSidebarExpansionWithPrefs()
         restoreFocusAfterResume()
+        // Popups (first-launch disclaimer, update prompt) can outlive the initial focus
+        // retry window; re-arm it whenever we come back to the foreground with no focus.
+        if (currentFocus == null) needForceInitialContentFocus = true
         forceInitialContentFocusIfNeeded()
         ensureInitialFocus()
         refreshSidebarUser()

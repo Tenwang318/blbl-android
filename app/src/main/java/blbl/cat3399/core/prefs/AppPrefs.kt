@@ -130,7 +130,7 @@ class AppPrefs(context: Context) {
         set(value) = prefs.edit().putBoolean(KEY_DYNAMIC_FOLLOWING_RECENT_UPDATE_DOT_ENABLED, value).apply()
 
     var autoUpdateCheckEnabled: Boolean
-        get() = prefs.getBoolean(KEY_AUTO_UPDATE_CHECK_ENABLED, true)
+        get() = prefs.getBoolean(KEY_AUTO_UPDATE_CHECK_ENABLED, false)
         set(value) = prefs.edit().putBoolean(KEY_AUTO_UPDATE_CHECK_ENABLED, value).apply()
 
     var autoUpdateIgnoredVersionName: String?
