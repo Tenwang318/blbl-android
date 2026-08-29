@@ -3,8 +3,6 @@ package blbl.cat3399.ui
 import android.content.Intent
 import android.os.Bundle
 import android.os.SystemClock
-import android.view.InputDevice
-import android.view.KeyCharacterMap
 import android.view.KeyEvent
 import android.view.View
 import android.view.ViewGroup
@@ -67,11 +65,6 @@ class MainActivity : BaseActivity(), SidebarFocusHost {
     private lateinit var navAdapter: SidebarNavAdapter
     private var needForceInitialContentFocus: Boolean = false
     private var pendingButtonBSidebarClose: Boolean = false
-    private var navRepeatKeyCode: Int? = null
-    private var navRepeatCount: Int = 0
-    private var navRepeatFocusRef: WeakReference<View>? = null
-    private var dispatchingSyntheticNavKey: Boolean = false
-    private val navRepeatHandler = android.os.Handler(android.os.Looper.getMainLooper())
     private var launchNavId: Int = SidebarNavAdapter.ID_HOME
     private var currentRootNavId: Int? = null
     private var lastMainFocusedView: WeakReference<View>? = null
@@ -241,7 +234,6 @@ class MainActivity : BaseActivity(), SidebarFocusHost {
         pausedFocusWasInMain = focused != null && isInMainContainer(focused)
         clearPendingSidebarCollapseAfterMainFocus()
         releaseDpadDownFocusGuard()
-        stopNavRepeat()
         super.onPause()
     }
 
@@ -378,18 +370,6 @@ class MainActivity : BaseActivity(), SidebarFocusHost {
         ) {
             pendingButtonBSidebarClose = false
             return true
-        }
-
-        // Wiliwili-style D-pad repeat taming: the OS auto-repeats direction keys at ~50ms
-        // which makes held navigation run away. Eat those repeats and drive them from our own
-        // clock (250ms trigger, 100ms repeat, skipped while focus cannot move) instead.
-        if (isDpadDirectionKey(event.keyCode)) {
-            if (event.action == KeyEvent.ACTION_DOWN) {
-                if (event.repeatCount > 0 && !dispatchingSyntheticNavKey) return true
-                if (!dispatchingSyntheticNavKey) startNavRepeat(event.keyCode)
-            } else if (navRepeatKeyCode == event.keyCode) {
-                stopNavRepeat()
-            }
         }
 
         if (event.action == KeyEvent.ACTION_DOWN) {
@@ -1211,65 +1191,6 @@ class MainActivity : BaseActivity(), SidebarFocusHost {
         return binding.mainContainer.requestFocus()
     }
 
-    private fun isDpadDirectionKey(keyCode: Int): Boolean {
-        return keyCode == KeyEvent.KEYCODE_DPAD_UP ||
-            keyCode == KeyEvent.KEYCODE_DPAD_DOWN ||
-            keyCode == KeyEvent.KEYCODE_DPAD_LEFT ||
-            keyCode == KeyEvent.KEYCODE_DPAD_RIGHT
-    }
-
-    private val navRepeatRunnable: Runnable = object : Runnable {
-        override fun run() {
-            val keyCode = navRepeatKeyCode ?: return
-            val focusedNow = currentFocus
-            if (navRepeatFocusRef?.get() === focusedNow) {
-                // Focus did not move since the last step (e.g. list edge): skip this tick and
-                // retry later instead of stepping blindly (wiliwili repetitionOldFocus guard).
-                navRepeatHandler.postDelayed(this, NAV_REPEAT_DELAY_MS)
-                return
-            }
-            navRepeatFocusRef = WeakReference(focusedNow)
-            navRepeatCount++
-            dispatchSyntheticNavKey(keyCode, navRepeatCount)
-            navRepeatHandler.postDelayed(this, NAV_REPEAT_DELAY_MS)
-        }
-    }
-
-    private fun startNavRepeat(keyCode: Int) {
-        if (navRepeatKeyCode == keyCode) return
-        stopNavRepeat()
-        navRepeatKeyCode = keyCode
-        navRepeatCount = 0
-        navRepeatFocusRef = WeakReference(currentFocus)
-        navRepeatHandler.postDelayed(navRepeatRunnable, NAV_REPEAT_TRIGGER_MS)
-    }
-
-    private fun stopNavRepeat() {
-        navRepeatKeyCode = null
-        navRepeatHandler.removeCallbacks(navRepeatRunnable)
-    }
-
-    private fun dispatchSyntheticNavKey(keyCode: Int, repeatCount: Int) {
-        val now = SystemClock.uptimeMillis()
-        val synthetic = KeyEvent(
-            now,
-            now,
-            KeyEvent.ACTION_DOWN,
-            keyCode,
-            repeatCount,
-            0,
-            KeyCharacterMap.VIRTUAL_KEYBOARD,
-            0,
-            KeyEvent.FLAG_SOFT_KEYBOARD or KeyEvent.FLAG_KEEP_TOUCH_MODE,
-            InputDevice.SOURCE_KEYBOARD,
-        )
-        dispatchingSyntheticNavKey = true
-        try {
-            dispatchKeyEvent(synthetic)
-        } finally {
-            dispatchingSyntheticNavKey = false
-        }
-    }
 
     private fun forceInitialContentFocusIfNeeded() {
         if (!needForceInitialContentFocus) return
@@ -1684,9 +1605,5 @@ class MainActivity : BaseActivity(), SidebarFocusHost {
         private const val STATE_KEY_ROOT_NAV_ID = "MainActivity.rootNavId"
         private const val BACK_DOUBLE_PRESS_WINDOW_MS = 1_500L
         private const val SIDEBAR_COLLAPSE_ARM_TIMEOUT_MS = 1_000L
-
-        // Wiliwili/borealis repeat cadence (BUTTOM_REPEAT_TRIGGER / BUTTON_REPEAT_DELAY).
-        private const val NAV_REPEAT_TRIGGER_MS = 250L
-        private const val NAV_REPEAT_DELAY_MS = 100L
     }
 }

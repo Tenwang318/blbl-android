@@ -98,6 +98,7 @@ class GamepadMotionDispatcher(
         if (!pressed) {
             if (state.pressed) {
                 state.pressed = false
+                AppLog.d(TAG, "nav release dir=$direction")
                 dispatchDpadKey(keyCode, KeyEvent.ACTION_UP, state.repeatCount)
                 return true
             }
@@ -107,6 +108,7 @@ class GamepadMotionDispatcher(
         if (!state.pressed) {
             // Edge: fire one step, arm the repeat clock (borealis BUTTOM_REPEAT_TRIGGER).
             state.pressed = true
+            AppLog.d(TAG, "nav press dir=$direction")
             state.repeatCount = 0
             if (navigate(direction, isRepeat = false)) {
                 dispatchDpadKey(keyCode, KeyEvent.ACTION_DOWN, 0)
