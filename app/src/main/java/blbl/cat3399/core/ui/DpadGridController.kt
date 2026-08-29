@@ -716,15 +716,33 @@ internal class DpadGridController(
 
     private fun handleDpadLeft(itemView: View): Boolean {
         if (moveFocusWithinRecycler(itemView, View.FOCUS_LEFT)) return true
+        // Row wrap: LEFT on the row's first card moves to the previous row's last card.
+        if (wrapToAdjacentRowEnd(itemView, forward = false)) return true
         return callbacks.onLeftEdge()
     }
 
     private fun handleDpadRight(itemView: View): Boolean {
         if (moveFocusWithinRecycler(itemView, View.FOCUS_RIGHT)) return true
+        // Row wrap: RIGHT on the row's last card moves to the next row's first card.
+        if (wrapToAdjacentRowEnd(itemView, forward = true)) return true
         if (!config.consumeRightEdge) return false
         callbacks.onRightEdge()
         // No outflow on the right edge.
         return true
+    }
+
+    /**
+     * Row wrap at horizontal edges: LEFT on a row's first item → previous row's last item;
+     * RIGHT on a row's last item → next row's first item (adapter order is row-major).
+     */
+    private fun wrapToAdjacentRowEnd(itemView: View, forward: Boolean): Boolean {
+        val pos = resolveAdapterPosition(itemView) ?: return false
+        val adapter = recyclerView.adapter ?: return false
+        val target = if (forward) pos + 1 else pos - 1
+        if (target !in 0 until adapter.itemCount) return false
+        // Strict row-major wrap: RIGHT at a row's end lands on the next row's first card,
+        // LEFT at a row's start on the previous row's last card.
+        return focusAdapterPosition(target)
     }
 
     private fun moveFocusWithinRecycler(itemView: View, direction: Int): Boolean {

@@ -1312,10 +1312,13 @@ class MainActivity : BaseActivity(), SidebarFocusHost {
         if (position < 0 || position >= navAdapter.itemCount) return false
         clearPendingSidebarCollapseAfterMainFocus()
         setSidebarExpanded(expanded = true)
+        enforceSidebarFocusWhileOpen()
         binding.recyclerSidebar.post {
             val vh = binding.recyclerSidebar.findViewHolderForAdapterPosition(position)
             if (vh != null) {
-                vh.itemView.requestFocus()
+                // Skip when already focused: a redundant requestFocus replays the item's
+                // focus-scale animator, which reads as a "jump".
+                if (!vh.itemView.isFocused) vh.itemView.requestFocus()
                 return@post
             }
             binding.recyclerSidebar.scrollToPosition(position)
